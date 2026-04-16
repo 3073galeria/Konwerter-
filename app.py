@@ -6,7 +6,7 @@ import io
 
 st.set_page_config(page_title="Konwerter Gazetek", page_icon="📄", layout="wide")
 st.title("Asystent Zmiany Cen: Smart Cells 🧠")
-st.write("Silnik odporny na przesunięcia kolumn, brakujące kody i wymysły działu marketingu.")
+st.write("Silnik odporny na przesunięcia kolumn. Poprawiona logika nazw i promocji.")
 
 uploaded_file = st.file_uploader("Wybierz plik PDF z dysku (np. P26 - P29)", type=["pdf"])
 
@@ -15,8 +15,8 @@ if uploaded_file is not None:
     
     produkty = []
     
-    # Żelazna lista departamentów do wycięcia z PDF
-    DEPARTAMENTY_REGEX = r'\b(CONFECTIONERY|GROCERY|AMBIENT|PET|SOFT DRINKS|SNACKING|HEALTH & BEAUTY|HEALTH|BEAUTY|EVERYDAY HOME|SEASONAL|HOUSEHOLD|PEPCO|HARD GOODS|BEER/? WINES & SPRITS|HOME|MTB)\b'
+    # Lista departamentów do wycięcia - bezpieczna wersja
+    DEPARTAMENTY_REGEX = r'\b(CONFECTIONERY|GROCERY|AMBIENT|PET|SOFT DRINKS|SNACKING|HEALTH & BEAUTY|HEALTH|BEAUTY|EVERYDAY HOME|SEASONAL|HOUSEHOLD|PEPCO|HARD GOODS|BEER|WINES|SPIRITS|HOME|MTB)\b'
     
     with pdfplumber.open(uploaded_file) as pdf:
         for page in pdf.pages:
@@ -37,9 +37,10 @@ if uploaded_file is not None:
                     for cell in cells:
                         c_low = cell.lower()
                         
-                        # 1. Ignorowanie nagłówków oraz całych komórek z nazwami działów
-                        if any(x in c_low for x in ['gazetka', 'cena sprzedaży', 'ean code', 'typ']):
+                        # 1. Ignorowanie nagłówków
+                        if any(x in c_low for x in ['gazetka', 'cena sprzedaży', 'ean code', 'typ', 'confectionery']):
                             continue
+                        # Ignorowanie komórek, które są tylko nazwą departamentu
                         if re.fullmatch(DEPARTAMENTY_REGEX, cell, re.IGNORECASE):
                             continue
                             
@@ -53,8 +54,8 @@ if uploaded_file is not None:
                             sku = cell
                             continue
                             
-                        # 4. Szukanie Opisu Promocji
-                        if re.search(r'(przy\s*zak|wychodzi|\+)', cell, re.IGNORECASE) or re.search(r'\d+\s*szt', cell, re.IGNORECASE):
+                        # 4. Szukanie Opisu Promocji (Tylko precyzyjne słowa kluczowe, omijamy samo "szt")
+                        if re.search(r'(przy\s*zak|wychodzi\s*\d|pomimo|\d+\+\d+\s*gratis)', cell, re.IGNORECASE):
                             promo_text = cell
                             continue
                             
@@ -63,24 +64,23 @@ if uploaded_file is not None:
                             cena_reg_str = cell.replace(' zł', '').replace('zł', '').replace(' ', '')
                             continue
                             
-                        # 6. Ignorowanie samotnych kodów działów (np. "820")
+                        # 6. Ignorowanie samotnych kodów działów (np. "820") na etapie komórek
                         if re.fullmatch(r'\d{3}', cell):
                             continue
                             
-                        # 7. Reszta to Nazwa Produktu
+                        # 7. Reszta ląduje w nazwie
                         nazwa_parts.append(cell)
                         
                     if not sku:
                         continue
                         
-                    # Sklejamy nazwę do kupy i filtrujemy raz jeszcze "odkurzaczem" na departamenty
+                    # Sklejanie i ostateczne czyszczenie nazwy
                     nazwa = " ".join(nazwa_parts).strip()
                     nazwa = re.sub(DEPARTAMENTY_REGEX, '', nazwa, flags=re.IGNORECASE)
                     nazwa = re.sub(r'\(PEPCO\)', '', nazwa, flags=re.IGNORECASE)
-                    nazwa = re.sub(r'\b\d{3}\b', '', nazwa) # Wycina 3-cyfrowe kody przypięte do nazwy
                     nazwa = re.sub(r'\s+', ' ', nazwa).strip()
                     
-                    # --- MATEMATYKA I FORMATOWANIE ---
+                    # --- MATEMATYKA ---
                     if cena_reg_str:
                         try:
                             cena_reg_float = float(cena_reg_str.replace(',', '.'))
@@ -119,7 +119,7 @@ if uploaded_file is not None:
                     produkty.append([typ, nazwa, cena_promo_format, cena_reg_format, ean_excel, ilosc_sztuk, sku])
 
     if produkty:
-        st.success(f"✅ SUKCES! Znalazłem i wyczyściłem {len(produkty)} produktów z departamentów.")
+        st.success(f"✅ SUKCES! Przetworzono {len(produkty)} produktów.")
         
         output = io.StringIO()
         writer = csv.writer(output, delimiter=';')
@@ -131,8 +131,8 @@ if uploaded_file is not None:
         st.download_button(
             label="📥 Pobierz plik CSV dla Excela",
             data=csv_data.encode('utf-8-sig'), 
-            file_name="sklep_ceny_smart_cells.csv",
+            file_name="sklep_ceny_poprawione.csv",
             mime="text/csv",
         )
     else:
-        st.error("❌ Nie znalazłem produktów. Upewnij się, że wgrywasz właściwy plik PDF.")
+        st.error("❌ Nie znalazłem produktów.")
