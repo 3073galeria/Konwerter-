@@ -4,171 +4,184 @@ import csv
 import re
 import io
 
-# Ustawienia wyglądu strony
-st.set_page_config(page_title="Konwerter Gazetek", page_icon="📄")
+# --- KONFIGURACJA STRONY ---
+st.set_page_config(page_title="Konwerter PDF: X/Y Engine", page_icon="⚙️", layout="wide")
+st.title("Asystent Zmiany Cen: Silnik X/Y")
+st.write("Wgraj plik PDF. Program czyta po fizycznych współrzędnych słów (odporny na łamanie tekstu i brak kolumn).")
 
-st.title("Asystent Zmiany Cen: PDF ➡️ CSV")
-st.write("Wgraj plik PDF z gazetką. Skrypt używa niezawodnego silnika analizy tekstu i zachowuje polskie znaki w Excelu.")
+# --- FUNKCJE POMOCNICZE (NASZ SILNIK X/Y) ---
+
+def is_sku(word):
+    # SKU: 4 do 8 cyfr, fizycznie leży po lewej stronie kartki (x0 < 200 pikseli)
+    return bool(re.fullmatch(r"\d{4,8}", word["text"])) and word["x0"] < 200
+
+def is_ean(word):
+    # EAN: 7 do 14 cyfr (odporny na gwiazdki), fizycznie po prawej stronie (x0 > 350 pikseli)
+    czysty_tekst = re.sub(r'\*', '', word["text"])
+    return bool(re.fullmatch(r"\d{7,14}", czysty_tekst)) and word["x0"] > 350
+
+def group_rows(words, tolerance=4):
+    # Grupowanie słów w wiersze po osi Y (tolerancja 4 piksele)
+    words = sorted(words, key=lambda w: w['top'])
+    rows = []
+    current_row = []
+    current_y = None
+    
+    for w in words:
+        if current_y is None:
+            current_y = w['top']
+            
+        if abs(w['top'] - current_y) <= tolerance:
+            current_row.append(w)
+        else:
+            # Sortujemy zebrany wiersz od lewej do prawej (po osi X)
+            rows.append(sorted(current_row, key=lambda x: x['x0']))
+            current_row = [w]
+            current_y = w['top']
+            
+    if current_row:
+        rows.append(sorted(current_row, key=lambda x: x['x0']))
+    return rows
+
+def parse_product(block_words):
+    # Sortujemy słowa dla naturalnego czytania (z góry na dół, z lewej do prawej)
+    sorted_words = sorted(block_words, key=lambda w: (w['top'], w['x0']))
+    full_text = " ".join([w['text'] for w in sorted_words])
+    
+    sku = "BRAK_SKU"
+    ean = "BRAK_EAN"
+    
+    # Wyciąganie SKU i EAN
+    for w in sorted_words:
+        if sku == "BRAK_SKU" and is_sku(w):
+            sku = w['text']
+        if is_ean(w):
+            ean = re.sub(r'\*', '', w['text'])
+            
+    # Wyciąganie wszystkich potencjalnych cen (kropka lub przecinek)
+    # Szukamy liczby formatu X,XX lub X.XX
+    all_prices = re.findall(r'(\d+[.,]\d{2})', full_text)
+    
+    cena_reg_str = "0,00"
+    cena_promo_str = "0,00"
+    typ = 'S'
+    ilosc_sztuk = "1"
+    
+    if all_prices:
+        cena_reg_str = all_prices[0].replace('.', ',')
+        cena_promo_str = cena_reg_str # Domyślnie brak promocji
+        
+    # Czyszczenie nazwy (usuwamy SKU, EAN i kody działów np. "820")
+    name = full_text
+    name = name.replace(sku, '', 1)
+    if ean != "BRAK_EAN":
+        name = name.replace(ean, '', 1)
+    name = re.sub(r'\b\d{3}\b', ' ', name) 
+    name = re.sub(r'GAZETKA|Cena sprzedaży|ean code', ' ', name, flags=re.IGNORECASE)
+    name = re.sub(r'\s+', ' ', name).strip()
+    
+    # --- LOGIKA PROMOCYJNA (Odporna na szum i słowo GRATIS) ---
+    # 1. Tor: "2.33 zł przy zak. 2 szt"
+    promo_match = re.search(r'(\d+[.,]\d{2})\s*(?:zł|pln)?\s*przy\s*zak\S*\s*(\d+)\s*szt?', full_text, re.IGNORECASE)
+    # 2. Tor: "wychodzi 2.33 zł pomimo (2+1 GRATIS)" -> Magnes na X+Y
+    wychodzi_match = re.search(r'(\d+)\s*\+\s*(\d+)', full_text)
+    
+    if promo_match:
+        typ = 'P'
+        cena_za_szt = float(promo_match.group(1).replace(',', '.'))
+        ilosc = int(promo_match.group(2))
+        cena_promo_str = str(round(cena_za_szt * ilosc, 2)).replace('.', ',')
+        ilosc_sztuk = str(ilosc)
+        
+    elif wychodzi_match:
+        typ = 'P'
+        ilosc_platnych = int(wychodzi_match.group(1))
+        gratis = int(wychodzi_match.group(2))
+        ilosc_wszystkich = ilosc_platnych + gratis
+        cena_reg_float = float(cena_reg_str.replace(',', '.'))
+        # Skrypt sam liczy łączną cenę wielopaka na podstawie starej ceny
+        cena_promo_str = str(round(cena_reg_float * ilosc_platnych, 2)).replace('.', ',')
+        ilosc_sztuk = str(ilosc_wszystkich)
+
+    return {
+        "Typ": typ, "Nazwa": name, "Cena Promo": cena_promo_str,
+        "Cena Regularna": cena_reg_str, "EAN": ean, "Ilosc": ilosc_sztuk, "SKU": sku
+    }
+
+# --- GŁÓWNY INTERFEJS ---
 
 uploaded_file = st.file_uploader("Wybierz plik PDF z dysku", type=["pdf"])
 
 if uploaded_file is not None:
-    st.info("Trwa analizowanie danych... To potrwa kilka sekund.")
+    st.info("Odpalam silnik X/Y. Skanuję fizyczne położenie słów...")
     
-    text = ""
+    all_words = []
+    
+    # 1. Pobieranie wszystkich słów i ich współrzędnych
     with pdfplumber.open(uploaded_file) as pdf:
         for page in pdf.pages:
-            # Używamy extract_text() zamiast tables, bo omija to problem przesuwających się kolumn
-            page_text = page.extract_text()
-            if page_text:
-                text += page_text + "\n"
-                
-    # --- SILNIK CZYSZCZĄCY I WYODRĘBNIAJĄCY ---
-    lines = text.split('\n')
-    flat_text = ""
+            all_words.extend(page.extract_words())
+            
+    # 2. Grupowanie w wiersze
+    rows = group_rows(all_words)
     
-    for line in lines:
-        line = line.strip()
-        # Ignoruj śmieci i nagłówki
-        if re.search(r'GAZETKA|Departament|SKU|SKUDesc|Cena sprzedaży|ean code|--- PAGE', line, re.IGNORECASE) or re.match(r'^\[(source|Image).*\]', line, re.IGNORECASE) or line == "":
-            continue
-        # Ignoruj numery i nazwy działów (żeby nie psuły kodów SKU)
-        if re.match(r'^\d{3}$', line) or re.match(r'^(CONFECTIONERY|GROCERY|AMBIENT|PET|SOFT DRINKS|SNACKING|HEALTH & BEAUTY|HEALTH|BEAUTY|EVERYDAY HOME|SEASONAL|HOUSEHOLD|PEPCO|HARD GOODS|BEER/ WINES & SPRITS)$', line, re.IGNORECASE) or re.match(r'^\d{3}\s+(CONFECTIONERY|GROCERY|AMBIENT|PET|SOFT DRINKS|SNACKING|HEALTH & BEAUTY|HEALTH|BEAUTY|EVERYDAY HOME|SEASONAL|HOUSEHOLD|PEPCO|HARD GOODS|BEER/ WINES & SPRITS)', line, re.IGNORECASE) or re.match(r'^\(PEPCO\)$', line, re.IGNORECASE):
-            continue
-        flat_text += " " + line
+    # 3. Budowanie bloków (Zasada Gilotyny SKU)
+    products_blocks = []
+    current_block = []
+    
+    for row in rows:
+        has_sku = any(is_sku(w) for w in row)
+        has_ean = any(is_ean(w) for w in row)
         
-    flat_text = re.sub(r'\s+', ' ', flat_text).strip()
-    
-    # Szukamy kotwic, czyli wszystkich cen XX,XX zł
-    price_regex = re.compile(r'(\d+[.,]\d{2}\s*(?:zł|pln))', re.IGNORECASE)
-    all_prices = list(price_regex.finditer(flat_text))
-    
-    produkty = []
-    
-    if all_prices:
-        grouped = []
-        i = 0
-        while i < len(all_prices):
-            curr = all_prices[i]
-            if i + 1 < len(all_prices):
-                nxt = all_prices[i+1]
-                text_between = flat_text[curr.end():nxt.start()].strip()
-                if text_between == "" or text_between.lower() in ["zł", "pln", "/"]:
-                    grouped.append({'old': curr, 'new': nxt})
-                    i += 2
-                    continue
-            grouped.append({'old': curr, 'new': None})
-            i += 1
+        # Cięcie Gilotyną - jeśli mamy już jakiś tekst, a wjeżdża nowe SKU -> zamykamy stary blok!
+        if has_sku and current_block:
+            products_blocks.append(current_block)
+            current_block = []
             
-        boundaries = [0]
-        for i in range(len(grouped) - 1):
-            p1 = grouped[i]
-            p2 = grouped[i+1]
-            end_of_p1 = p1['new'].end() if p1['new'] else p1['old'].end()
-            start_of_p2 = p2['old'].start()
-            middle_text = flat_text[end_of_p1:start_of_p2]
+        # Zbieramy dane do bloku, jeśli został otwarty
+        if has_sku or current_block:
+            current_block.extend(row)
             
-            split_offset = 0
-            next_sku_match = re.search(r'\b\d{5,8}\b', middle_text)
-            if next_sku_match:
-                split_offset = next_sku_match.start()
-            else:
-                word_match = re.search(r'\s+([A-ZŻŹĆĄŚĘŁÓŃ]{4,})', middle_text)
-                if word_match:
-                    split_offset = word_match.start() + 1
-                else:
-                    bracket_match = re.search(r'\)\s+', middle_text)
-                    if bracket_match:
-                        split_offset = bracket_match.start() + 1
-            boundaries.append(end_of_p1 + split_offset)
+        # Naturalne zamknięcie bloku (znaleziono EAN na końcu)
+        if has_ean and current_block:
+            products_blocks.append(current_block)
+            current_block = []
             
-        boundaries.append(len(flat_text))
+    # Dodanie ostatniego bloku z pamięci
+    if current_block:
+        products_blocks.append(current_block)
         
-        for i in range(len(grouped)):
-            chunk_start = boundaries[i]
-            chunk_end = boundaries[i+1]
-            chunk = flat_text[chunk_start:chunk_end]
-            
-            old_price_idx = grouped[i]['old'].start() - chunk_start
-            name_block = chunk[:old_price_idx]
-            
-            if grouped[i]['new']:
-                new_price_end = grouped[i]['new'].end() - chunk_start
-                promo_block = chunk[new_price_end:].strip()
-                final_offer = grouped[i]['new'].group().strip() + " " + promo_block
-            else:
-                old_price_end = old_price_idx + len(grouped[i]['old'].group())
-                promo_block = chunk[old_price_end:].strip()
-                final_offer = promo_block if promo_block else grouped[i]['old'].group().strip()
-                
-            name_block = name_block.strip()
-            
-            # WYZNACZANIE EAN-u ORAZ JEGO USUNIĘCIE Z NAZWY/OFERTY
-            ean_match = re.findall(r'(?:\b\d{13}\b|\*\d{13}\*)', name_block + " " + final_offer)
-            ean = ean_match[-1].replace('*', '') if ean_match else "BRAK_EAN"
-            
-            name_block = re.sub(r'(?:\b\d{13}\b|\*\d{13}\*)', ' ', name_block)
-            final_offer = re.sub(r'(?:\b\d{13}\b|\*\d{13}\*)', ' ', final_offer)
-            
-            # WYZNACZANIE KODU SKU Z NAZWY
-            sku_match = re.search(r'\b\d{5,8}\b', name_block)
-            if sku_match:
-                sku = sku_match.group()
-                name_block = name_block.replace(sku, '').strip()
-            else:
-                sku = "BRAK_SKU"
-                
-            final_name = re.sub(r'\s+', ' ', name_block).strip()
-            final_offer = re.sub(r'\(?MTB\)?', '', final_offer, flags=re.IGNORECASE).strip()
-            old_offer = grouped[i]['old'].group().strip()
-            
-            # --- TWOJA GENIALNA MATEMATYKA (Nienaruszona) ---
-            typ = 'S'
-            cena_promo = old_offer
-            ilosc_sztuk = "1"
-            
-            promo_match = re.search(r'(\d+(?:,\d{2})?)\s*zł\s*przy\s*zak\S*\s*(\d+)\s*szt?', final_offer, re.IGNORECASE)
-            wychodzi_match = re.search(r'wychodzi\s*(\d+(?:,\d{2})?)\s*zł\s*pomimo\s*(?:\()?(\d+)\+(\d+)', final_offer, re.IGNORECASE)
-            
-            if promo_match:
-                typ = 'P'
-                cena_za_szt = float(promo_match.group(1).replace(',', '.'))
-                ilosc = int(promo_match.group(2))
-                cena_promo = str(round(cena_za_szt * ilosc, 2)).replace('.', ',')
-                ilosc_sztuk = str(ilosc)
-            elif wychodzi_match:
-                typ = 'P'
-                ilosc_platnych = int(wychodzi_match.group(2))
-                ilosc_wszystkich = ilosc_platnych + int(wychodzi_match.group(3))
-                cena_reg_float = float(old_offer.replace('zł','').replace(' ','').replace(',', '.'))
-                cena_promo = str(round(cena_reg_float * ilosc_platnych, 2)).replace('.', ',')
-                ilosc_sztuk = str(ilosc_wszystkich)
-            else:
-                # Jeśli jest czysta nowa cena np. "7,50 zł" bez zasad sztukowych
-                cena_prosta = re.match(r'^(\d+[.,]\d{2})\s*zł$', final_offer, re.IGNORECASE)
-                if cena_prosta:
-                    cena_promo = cena_prosta.group(1)
+    # 4. Przetwarzanie i Walidacja
+    valid_products = []
+    
+    for block in products_blocks:
+        if not block: continue
+        parsed = parse_product(block)
+        
+        # Krytyczna walidacja - dodajemy do CSV tylko jeśli jest poprawny SKU i jakakolwiek Cena
+        if parsed["SKU"] != "BRAK_SKU" and parsed["Cena Regularna"] != "0,00":
+            # Przygotowanie wiersza pod Twój schemat Excela
+            valid_products.append([
+                parsed["Typ"], parsed["Nazwa"], parsed["Cena Promo"], 
+                parsed["Cena Regularna"], parsed["EAN"], parsed["Ilosc"], parsed["SKU"]
+            ])
 
-            # Dopisywanie do listy wyników
-            produkty.append([typ, final_name, cena_promo, old_offer, ean, ilosc_sztuk, sku, final_offer])
-
-    if produkty:
-        st.success(f"✅ SUKCES! Wyodrębniono {len(produkty)} produktów.")
-
-        # Zapis do CSV w pamięci (z odpowiednim kodowaniem dla Microsoft Excel)
+    # 5. Generowanie pliku
+    if valid_products:
+        st.success(f"✅ SUKCES! Bezbłędnie wyodrębniono {len(valid_products)} produktów.")
+        
         output = io.StringIO()
         writer = csv.writer(output, delimiter=';')
-        writer.writerow(['Typ', 'Nazwa', 'Cena Promo (wyliczona)', 'Cena Regularna', 'EAN', 'Ilosc Sztuk (wyliczona)', 'SKU', 'Oryginalny Opis Promocji (dla weryfikacji)'])
-        writer.writerows(produkty)
+        writer.writerow(['Typ', 'Nazwa', 'Cena Promo', 'Cena Regularna', 'EAN', 'Ilosc Sztuk', 'SKU'])
+        writer.writerows(valid_products)
         
         csv_data = output.getvalue()
-
+        
         st.download_button(
             label="📥 Pobierz plik CSV dla Excela",
-            # MAGIA EXCELA: 'utf-8-sig' to kodowanie z BOM, które wymusza na Excelu poprawne czytanie polskich znaków Ą, Ę, Ł, Ś
             data=csv_data.encode('utf-8-sig'), 
-            file_name="sklep_ceny.csv",
+            file_name="sklep_ceny_XY.csv",
             mime="text/csv",
         )
     else:
-        st.error("Nie znalazłem żadnych produktów. Upewnij się, że wgrywasz poprawny plik PDF.")
+        st.error("❌ Nie znalazłem żadnych produktów spełniających kryteria. Upewnij się, że wgrywasz właściwy plik.")
