@@ -181,7 +181,6 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
     if not do_druku_df.empty:
         do_druku_df = do_druku_df.sort_values(by="Departament")
         
-        # HTML z rygorystycznymi blokadami szerokości (A4 Strict CSS)
         html_head = """
         <!DOCTYPE html>
         <html>
@@ -192,7 +191,7 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
                 @page { size: A4 portrait; margin: 10mm; }
                 * { box-sizing: border-box; }
                 body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fff; margin: 0; padding: 0; color: #000; }
-                .container { width: 100%; max-width: 190mm; margin: 0 auto; } /* 210mm A4 minus marginesy */
+                .container { width: 100%; max-width: 190mm; margin: 0 auto; }
                 
                 .departament-header { color: #666; font-size: 16px; font-weight: bold; margin-top: 25px; padding-bottom: 5px; border-bottom: 2px solid #eee; text-transform: uppercase; }
                 .product-row { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f0f0f0; padding: 12px 0; page-break-inside: avoid; width: 100%; overflow: hidden; }
@@ -278,7 +277,8 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
             """
             
         html_footer = f"""
-            </div> <script>
+            </div>
+            <script>
                 window.onload = function() {{
                     {js_scripts}
                     // Po wygenerowaniu kodów kreskowych automatycznie otwórz okno drukowania
@@ -292,24 +292,23 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
         final_html = html_head + html_body + html_footer
         
         st.divider()
-        st.info("Poniższy przycisk otworzy nową kartę i automatycznie uruchomi systemowe okno drukowania.")
+        st.info("Poniższy przycisk bezpiecznie otworzy nową kartę z gotowym wydrukiem.")
         
-        # Konwertujemy HTML do JSON-a, żeby bezpiecznie wstrzyknąć go do JavaScriptu
+        # Bezpieczne rozwiązanie Blob + <a> tag
         html_json = json.dumps(final_html)
         
-        # Streamlit Component z przyciskiem wstrzykującym HTML do nowej karty
         st.components.v1.html(f"""
-            <button onclick="openPrintWindow()" style="padding: 12px 20px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; font-weight: bold; font-family: sans-serif; transition: background 0.3s;">
-                🖨️ OTWÓRZ OKNO DRUKOWANIA
-            </button>
+            <div style="display: flex; justify-content: center; font-family: sans-serif; margin-top: 10px;">
+                <a id="print-link" target="_blank" style="padding: 12px 20px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; text-decoration: none; width: 100%; text-align: center; transition: background 0.3s;">
+                    🖨️ OTWÓRZ KARTĘ DO DRUKU
+                </a>
+            </div>
             <script>
-            function openPrintWindow() {{
-                var printWindow = window.open('', '_blank');
-                printWindow.document.open();
-                printWindow.document.write({html_json});
-                printWindow.document.close();
-            }}
+                var htmlData = {html_json};
+                var blob = new Blob([htmlData], {{type: 'text/html'}});
+                var url = URL.createObjectURL(blob);
+                document.getElementById('print-link').href = url;
             </script>
-        """, height=60)
+        """, height=70)
     else:
         st.info("Zaznacz przynajmniej jeden produkt, aby przygotować wydruk.")
