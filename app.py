@@ -1,39 +1,58 @@
 import streamlit as st
+import pandas as pd
 import re
 
-st.set_page_config(page_title="Porównywarka Gazetek Dealz", page_icon="🕵️", layout="wide")
-st.title("Asystent Zmiany Cen: Porównywarka i Generator Etykiet 🖨️")
-st.write("Wklej tekst ze Starej i Nowej gazetki. Program sam znajdzie zmiany i wygeneruje kody kreskowe!")
+# Konfiguracja strony
+st.set_page_config(page_title="Asystent Dealz", page_icon="🏷️", layout="wide")
 
-# --- FUNKCJA PARSUJĄCA (NASZ SILNIK) ---
+# Ukrywamy domyślne elementy Streamlit dla czystszego widoku
+st.markdown("""
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    </style>
+""", unsafe_allow_html=True)
+
+st.title("🏷️ Asystent Zmiany Cen Dealz")
+
+# --- SILNIK PARSUJĄCY ---
 def parse_text(raw_text):
     full_text = re.sub(r'\s+', ' ', raw_text).strip()
+    # Usuwamy nagłówki
     full_text = re.sub(r'Departament SKU SKUDesc.*?ean code', '', full_text, flags=re.IGNORECASE)
     full_text = re.sub(r'GAZETKA P\d+ \d{2}\.\d{2}-\d{2}\.\d{2}', '', full_text, flags=re.IGNORECASE)
     
-    pattern = r'\b\d{3}\b\s+[A-Z\s&/()]*?\s*(\d{4,8})\s+(.*?)((?=\b\d{3}\b\s+[A-Z\s&/()]*?\s*\d{4,8}\b)|$)'
+    # Gilotyna SKU - wyciągamy Dział (np. 820), Nazwę Działu i SKU
+    pattern = r'\b(\d{3})\b\s+([A-Z\s&/()]+?)\s+(\d{4,8})\s+(.*?)((?=\b\d{3}\b\s+[A-Z\s&/()]+?\s*\d{4,8}\b)|$)'
     matches = re.finditer(pattern, full_text)
     
     katalog = {}
     
     for match in matches:
-        sku = match.group(1)
-        reszta_tekstu = match.group(2).strip()
+        kod_dzialu = match.group(1).strip()
+        nazwa_dzialu = match.group(2).strip()
+        departament = f"{kod_dzialu} {nazwa_dzialu}"
+        sku = match.group(3).strip()
+        reszta_tekstu = match.group(4).strip()
         
+        # Szukanie pierwszej ceny regularnej (zabezpiecza przed gramaturą)
         reg_price_match = re.search(r'(\d+[.,]\d{2})\s*zł', reszta_tekstu, re.IGNORECASE)
-        if not reg_price_match: continue
+        if not reg_price_match: 
+            continue
             
         nazwa = reszta_tekstu[:reg_price_match.start()].strip()
         cena_reg_str = reg_price_match.group(1)
         reszta_po_reg = reszta_tekstu[reg_price_match.end():].strip()
         
+        # Wyłapywanie EAN (ignorujemy #ARG!)
         eans = re.findall(r'\*?\b(\d{8,14})\b\*?', reszta_po_reg)
         ean = "BRAK_EAN"
-        for e in eans:
+        for e in reversed(eans): # Szukamy od końca, by uniknąć fałszywych trafień
             if e and e != '#ARG!':
                 ean = e
                 break 
                 
+        # Sekcja promocyjna (MTB)
         mtb = re.sub(r'\*?\b\d{8,14}\b\*?', '', reszta_po_reg).replace('#ARG!', '').strip()
         
         cena_reg_float = float(cena_reg_str.replace(',', '.'))
@@ -43,6 +62,7 @@ def parse_text(raw_text):
         cena_promo_format = cena_reg_format
         ilosc_sztuk = '1'
         
+        # Logika sprawdzania promocji
         promo_match = re.search(r'(\d+(?:[.,]\d{1,2})?)\s*(?:zł|pln)?\s*(?:/\s*szt\.?)?\s*przy\s*zak\S*\s*(\d+)', mtb, re.IGNORECASE)
         x_y_match = re.search(r'(\d+)\s*\+\s*(\d+)', mtb)
         simple_price = re.search(r'(\d+(?:[.,]\d{1,2})?)\s*zł', mtb, re.IGNORECASE)
@@ -52,12 +72,12 @@ def parse_text(raw_text):
             cena_za_szt = float(promo_match.group(1).replace(',', '.'))
             ilosc = int(promo_match.group(2))
             cena_promo_format = "{:.2f}".format(cena_za_szt * ilosc).replace('.', ',')
-            ilosc_sztuk = str(ilosc)
+            ilosc_sztuk = f"{ilosc} szt."
         elif x_y_match:
             typ = 'P'
             ilosc_platnych = int(x_y_match.group(1))
             gratis = int(x_y_match.group(2))
-            ilosc_sztuk = str(ilosc_platnych + gratis)
+            ilosc_sztuk = f"{ilosc_platnych + gratis} szt."
             cena_promo_format = "{:.2f}".format(cena_reg_float * ilosc_platnych).replace('.', ',')
         elif simple_price:
             val = float(simple_price.group(1).replace(',', '.'))
@@ -66,117 +86,198 @@ def parse_text(raw_text):
             ilosc_sztuk = 'Wielosztuka'
                 
         katalog[sku] = {
-            'Nazwa': nazwa, 'Cena_Reg': cena_reg_format, 
-            'Cena_Promo': cena_promo_format, 'EAN': ean, 
-            'Typ': typ, 'Ilosc': ilosc_sztuk
+            'Departament': departament,
+            'Nazwa': nazwa, 
+            'Stara_Cena': cena_reg_format, 
+            'Nowa_Cena': cena_promo_format, 
+            'Mechanizm': ilosc_sztuk,
+            'EAN': ean, 
+            'Typ': typ
         }
     return katalog
 
-# --- INTERFEJS UŻYTKOWNIKA ---
+# --- INTERFEJS APLIKACJI ---
 col1, col2 = st.columns(2)
-
 with col1:
-    st.subheader("📄 STARA Gazetka")
-    stara_text = st.text_area("Wklej tekst ze starej gazetki:", height=250, key="stara")
-
+    stara_text = st.text_area("📄 Wklej tekst STAREJ gazetki:", height=200)
 with col2:
-    st.subheader("📄 NOWA Gazetka")
-    nowa_text = st.text_area("Wklej tekst z nowej gazetki:", height=250, key="nowa")
+    nowa_text = st.text_area("📄 Wklej tekst NOWEJ gazetki:", height=200)
 
-if st.button("🚀 PORÓWNAJ GAZETKI", use_container_width=True):
+if st.button("🚀 PRZETWÓRZ I PORÓWNAJ", use_container_width=True):
     if stara_text and nowa_text:
         stara_baza = parse_text(stara_text)
         nowa_baza = parse_text(nowa_text)
         
-        nowosci = []
-        zmiany_cen = []
-        koniec_promocji = []
+        wyniki = []
         
-        # LOGIKA ZDERZENIA
         for sku, nowa_dane in nowa_baza.items():
             if sku not in stara_baza:
-                nowosci.append((sku, nowa_dane))
+                status = "NOWOŚĆ"
             else:
                 stara_dane = stara_baza[sku]
-                if (nowa_dane['Cena_Reg'] != stara_dane['Cena_Reg'] or 
-                    nowa_dane['Cena_Promo'] != stara_dane['Cena_Promo'] or 
+                if (nowa_dane['Stara_Cena'] != stara_dane['Stara_Cena'] or 
+                    nowa_dane['Nowa_Cena'] != stara_dane['Nowa_Cena'] or 
                     nowa_dane['Typ'] != stara_dane['Typ'] or 
-                    nowa_dane['Ilosc'] != stara_dane['Ilosc']):
-                    zmiany_cen.append((sku, nowa_dane, stara_dane))
-                    
+                    nowa_dane['Mechanizm'] != stara_dane['Mechanizm']):
+                    status = "ZMIANA CENY"
+                else:
+                    status = "BEZ ZMIAN"
+            
+            if status != "BEZ ZMIAN":
+                wyniki.append({
+                    "🖨️ Do druku": True,
+                    "Status": status,
+                    "Departament": nowa_dane['Departament'],
+                    "SKU": sku,
+                    "Nazwa": nowa_dane['Nazwa'],
+                    "Cena Regularna": nowa_dane['Stara_Cena'] + " zł",
+                    "Cena Promocyjna": nowa_dane['Nowa_Cena'] + " zł",
+                    "Ilość/Mechanizm": nowa_dane['Mechanizm'],
+                    "EAN": nowa_dane['EAN']
+                })
+                
         for sku, stara_dane in stara_baza.items():
             if sku not in nowa_baza:
-                koniec_promocji.append((sku, stara_dane))
+                wyniki.append({
+                    "🖨️ Do druku": False, # Domyślnie końcówki promocji odznaczamy z druku etykiet
+                    "Status": "KONIEC PROMOCJI",
+                    "Departament": stara_dane['Departament'],
+                    "SKU": sku,
+                    "Nazwa": stara_dane['Nazwa'],
+                    "Cena Regularna": stara_dane['Stara_Cena'] + " zł",
+                    "Cena Promocyjna": "-",
+                    "Ilość/Mechanizm": "-",
+                    "EAN": stara_dane['EAN']
+                })
+
+        # Zapisujemy wyniki do sesji
+        st.session_state['df_wyniki'] = pd.DataFrame(wyniki)
+    else:
+        st.warning("Wklej tekst do obu okien!")
+
+# --- INTERAKTYWNA TABELA I WYDRUK ---
+if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
+    st.divider()
+    st.subheader("📋 Lista robocza (Zaznacz, co chcesz wydrukować)")
+    st.info("💡 Możesz sortować klikając w nagłówki kolumn. Odznacz pole w kolumnie '🖨️ Do druku', aby pominąć dany produkt na wydruku.")
+    
+    # Interaktywny edytor danych
+    edytowany_df = st.data_editor(
+        st.session_state['df_wyniki'],
+        hide_index=True,
+        use_container_width=True,
+        column_config={
+            "🖨️ Do druku": st.column_config.CheckboxColumn(required=True)
+        }
+    )
+    
+    st.divider()
+    
+    # --- GENERATOR WYDRUKU (WIDOK DOCELOWY) ---
+    st.subheader("🖨️ Podgląd Wydruku")
+    
+    # Filtrujemy tylko to, co zaznaczone
+    do_druku_df = edytowany_df[edytowany_df["🖨️ Do druku"] == True]
+    
+    if do_druku_df.empty:
+        st.warning("Nie wybrano żadnych produktów do druku.")
+    else:
+        # Sortowanie według departamentów
+        do_druku_df = do_druku_df.sort_values(by="Departament")
         
-        # --- PREZENTACJA WYNIKÓW ---
-        st.divider()
+        # Generowanie czystego kodu HTML imitującego gazetkę
+        html_head = """
+        <html>
+        <head>
+            <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+            <style>
+                body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #fff; margin: 0; }
+                .departament-header { background: #333; color: #fff; padding: 10px; font-size: 18px; font-weight: bold; margin-top: 20px; text-transform: uppercase; border-radius: 4px; }
+                .product-row { display: flex; align-items: center; border-bottom: 1px solid #ddd; padding: 10px 0; page-break-inside: avoid; }
+                .col-sku { width: 15%; text-align: center; }
+                .col-nazwa { width: 40%; padding: 0 15px; font-size: 14px; font-weight: bold; }
+                .col-ceny { width: 25%; text-align: center; }
+                .col-ean { width: 20%; text-align: center; font-size: 12px; color: #555; }
+                .cena-stara { text-decoration: line-through; color: #888; font-size: 12px; }
+                .cena-nowa { color: #d00; font-size: 20px; font-weight: bold; display: block; margin-top: 5px; }
+                .mechanizm { background: #ffeb3b; padding: 2px 5px; font-size: 12px; border-radius: 3px; font-weight: bold; }
+                svg { max-height: 50px; }
+                
+                /* Ukryj przycisk drukuj podczas fizycznego wydruku */
+                @media print {
+                    .btn-print { display: none !important; }
+                }
+            </style>
+        </head>
+        <body>
+            <button class="btn-print" onclick="window.print()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-bottom: 10px;">🖨️ Wydrukuj ten arkusz</button>
+        """
         
-        # 1. KONIEC PROMOCJI (Lista do zdjęcia ze sklepu)
-        if koniec_promocji:
-            st.error(f"🔴 KONIEC PROMOCJI ({len(koniec_promocji)} produktów) - Zdejmij z półki!")
-            for sku, dane in koniec_promocji:
-                st.write(f"**SKU:** {sku} | **Nazwa:** {dane['Nazwa']}")
+        html_body = ""
+        current_dept = ""
         
-        # 2. NOWOŚCI I ZMIANY CEN (Do druku)
-        do_druku = nowosci + [(item[0], item[1]) for item in zmiany_cen]
+        # Skrypty JSBarcode będziemy zbierać na koniec
+        js_scripts = ""
         
-        if do_druku:
-            st.success(f"🟢 NOWOŚCI I ZMIANY CEN ({len(do_druku)} produktów) - Gotowe do druku!")
+        for index, row in do_druku_df.iterrows():
+            dept = row["Departament"]
+            if dept != current_dept:
+                html_body += f"<div class='departament-header'>{dept}</div>"
+                current_dept = dept
             
-            # Generowanie układu HTML dla kodów kreskowych
-            html_content = """
-            <html>
-            <head>
-                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-                <style>
-                    body { font-family: Arial, sans-serif; }
-                    .etykieta { border: 1px dashed #ccc; padding: 10px; margin: 10px; display: inline-block; width: 300px; text-align: center; vertical-align: top; }
-                    .nazwa { font-size: 12px; font-weight: bold; margin-bottom: 5px; height: 30px; overflow: hidden; }
-                    .cena { font-size: 18px; color: #d9534f; font-weight: bold; margin-bottom: 5px; }
-                    .sku { font-size: 10px; color: #555; }
-                </style>
-            </head>
-            <body>
+            ean = str(row["EAN"])
+            sku = str(row["SKU"])
+            
+            # Bezpiecznik EAN (Tylko prawidłowy EAN wygeneruje kod graficzny)
+            barcode_svg = ""
+            if ean != "BRAK_EAN" and ean.isdigit():
+                barcode_id = f"barcode_{sku}"
+                barcode_svg = f"<svg id='{barcode_id}'></svg>"
+                js_scripts += f"""
+                    try {{
+                        JsBarcode("#{barcode_id}", "{ean}", {{
+                            format: "CODE128", width: 1.5, height: 40, displayValue: false, margin: 0
+                        }});
+                    }} catch (e) {{ console.log("Błąd kodu: " + "{ean}"); }}
+                """
+            else:
+                barcode_svg = "<div style='color:#ccc; font-size:10px;'>Brak EAN w systemie</div>"
+
+            # Renderowanie rzędu (poziomego)
+            mechanizm_html = f"<div class='mechanizm'>{row['Ilość/Mechanizm']}</div>" if row['Ilość/Mechanizm'] not in ["1", "-", "1 szt."] else ""
+            
+            html_body += f"""
+            <div class='product-row'>
+                <div class='col-sku'>
+                    <div><strong>{sku}</strong></div>
+                    <div style='margin-top: 5px;'>{barcode_svg}</div>
+                </div>
+                <div class='col-nazwa'>
+                    <div style='color: #0066cc; font-size: 10px; margin-bottom: 3px;'>{row['Status']}</div>
+                    {row['Nazwa']}
+                </div>
+                <div class='col-ceny'>
+                    <span class='cena-stara'>Reg: {row['Cena Regularna']}</span>
+                    <span class='cena-nowa'>{row['Cena Promocyjna']}</span>
+                    {mechanizm_html}
+                </div>
+                <div class='col-ean'>
+                    EAN: {ean}
+                </div>
+            </div>
             """
             
-            for sku, dane in do_druku:
-                # Pokazujemy ceny w zależności od tego, czy to wielosztuka czy standard
-                cena_text = f"{dane['Cena_Promo']} zł"
-                if dane['Typ'] == 'P' and dane['Ilosc'] != '1':
-                    cena_text += f" ({dane['Ilosc']} szt)"
-                
-                ean_do_kodu = dane['EAN']
-                # Bezpiecznik jeśli EAN jest uszkodzony - drukujemy SKU jako zapasowy kod kreskowy
-                kod_kreskowy = ean_do_kodu if ean_do_kodu != "BRAK_EAN" else sku 
-                
-                html_content += f"""
-                <div class="etykieta">
-                    <div class="nazwa">{dane['Nazwa']}</div>
-                    <div class="cena">{cena_text}</div>
-                    <svg id="barcode_{sku}"></svg>
-                    <div class="sku">SKU: {sku} | EAN: {ean_do_kodu}</div>
-                    <script>
-                        JsBarcode("#barcode_{sku}", "{kod_kreskowy}", {{
-                            format: "CODE128",
-                            lineColor: "#000",
-                            width: 2,
-                            height: 40,
-                            displayValue: false
-                        }});
-                    </script>
-                </div>
-                """
-            
-            html_content += "</body></html>"
-            
-            # Osadzenie gotowego widoku z kodami w aplikacji
-            st.components.v1.html(html_content, height=600, scrolling=True)
-            
-            # Wskazówka dla użytkownika
-            st.info("💡 Aby wydrukować powyższe kody, kliknij prawym przyciskiem myszy wewnątrz białego pola z kodami i wybierz 'Drukuj' (lub użyj skrótu Ctrl+P).")
+        html_footer = f"""
+            <script>
+                window.onload = function() {{
+                    {js_scripts}
+                }};
+            </script>
+        </body>
+        </html>
+        """
         
-        if not nowosci and not zmiany_cen and not koniec_promocji:
-            st.success("✅ Brak jakichkolwiek zmian! Obie gazetki są identyczne.")
-            
-    else:
-        st.warning("⚠️ Wklej tekst do obu okien, aby rozpocząć porównanie.")
+        final_html = html_head + html_body + html_footer
+        
+        # Wyświetlamy gotowy widok HTML
+        st.components.v1.html(final_html, height=800, scrolling=True)
