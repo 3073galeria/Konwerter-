@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import re
-import base64
+import json
 
 # Konfiguracja strony
 st.set_page_config(page_title="Asystent Dealz", page_icon="🏷️", layout="wide")
@@ -15,7 +15,7 @@ st.markdown("""
 
 st.title("🏷️ Asystent Zmiany Cen Dealz")
 
-# --- SILNIK PARSUJĄCY (NIETKNIĘTY ZGODNIE Z POLECENIEM) ---
+# --- SILNIK PARSUJĄCY (NIETKNIĘTY) ---
 def parse_text(raw_text):
     full_text = re.sub(r'\s+', ' ', raw_text).strip()
     full_text = re.sub(r'Departament SKU SKUDesc.*?ean code', '', full_text, flags=re.IGNORECASE)
@@ -152,7 +152,6 @@ if st.button("🚀 PRZETWÓRZ I PORÓWNAJ", use_container_width=True):
 if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
     st.divider()
     
-    # Klawisze misji (filtrowanie)
     st.subheader("🎯 Panel misji: Co chcesz dzisiaj wydrukować?")
     
     df = st.session_state['df_wyniki']
@@ -164,10 +163,8 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
         default=dostepne_statusy
     )
     
-    # Filtrujemy DataFrame przed pokazaniem w edytorze
     df_filtered = df[df['Status'].isin(wybrane_statusy)].reset_index(drop=True)
     
-    # Interaktywny edytor danych
     st.markdown("##### 📋 Lista robocza (Zaznacz/Odznacz wybrane)")
     edytowany_df = st.data_editor(
         df_filtered,
@@ -178,13 +175,13 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
         }
     )
     
-    # --- PRZYGOTOWANIE PLIKU HTML DO POBRANIA ---
+    # --- PRZYGOTOWANIE KODU HTML DO OKNA DRUKOWANIA ---
     do_druku_df = edytowany_df[edytowany_df["🖨️ Do druku"] == True]
     
     if not do_druku_df.empty:
         do_druku_df = do_druku_df.sort_values(by="Departament")
         
-        # Nowy, lekki i przejrzysty szablon CSS
+        # HTML z rygorystycznymi blokadami szerokości (A4 Strict CSS)
         html_head = """
         <!DOCTYPE html>
         <html>
@@ -192,36 +189,37 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
             <meta charset="UTF-8">
             <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
             <style>
-                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fff; margin: 0; padding: 20px; color: #000; }
-                .departament-header { color: #666; font-size: 16px; font-weight: bold; margin-top: 30px; padding-bottom: 5px; border-bottom: 2px solid #eee; text-transform: uppercase; }
-                .product-row { display: flex; align-items: center; border-bottom: 1px solid #f0f0f0; padding: 15px 0; page-break-inside: avoid; }
+                @page { size: A4 portrait; margin: 10mm; }
+                * { box-sizing: border-box; }
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fff; margin: 0; padding: 0; color: #000; }
+                .container { width: 100%; max-width: 190mm; margin: 0 auto; } /* 210mm A4 minus marginesy */
                 
-                .col-sku { width: 25%; text-align: left; padding-right: 15px; }
+                .departament-header { color: #666; font-size: 16px; font-weight: bold; margin-top: 25px; padding-bottom: 5px; border-bottom: 2px solid #eee; text-transform: uppercase; }
+                .product-row { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f0f0f0; padding: 12px 0; page-break-inside: avoid; width: 100%; overflow: hidden; }
+                
+                .col-sku { width: 22%; text-align: left; padding-right: 10px; }
                 .sku-text { font-size: 14px; font-weight: bold; margin-bottom: 5px; }
                 
-                .col-nazwa { width: 45%; padding: 0 10px; }
+                .col-nazwa { width: 43%; padding: 0 10px; word-wrap: break-word; }
                 .status-label { font-size: 11px; color: #0056b3; font-weight: bold; margin-bottom: 4px; text-transform: uppercase; }
-                .nazwa-text { font-size: 14px; font-weight: 600; }
+                .nazwa-text { font-size: 14px; font-weight: 600; line-height: 1.2; }
                 
-                .col-ceny { width: 15%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+                .col-ceny { width: 20%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
                 .cena-stara { text-decoration: line-through; color: #888; font-size: 11px; margin-bottom: 2px; }
                 .cena-nowa { font-size: 24px; font-weight: bold; color: #000; margin-bottom: 2px; }
                 .mechanizm { font-size: 11px; font-weight: bold; color: #444; background: #f9f9f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #e0e0e0; }
                 
-                .col-ean { width: 15%; text-align: right; font-size: 11px; color: #999; }
+                .col-ean { width: 15%; text-align: right; font-size: 11px; color: #999; word-wrap: break-word; }
                 
-                svg { max-height: 45px; width: 100%; }
+                svg { max-height: 45px; width: 100%; object-fit: contain; }
                 
-                /* Ukryj elementy niepotrzebne przy drukowaniu */
                 @media print {
-                    @page { margin: 1cm; }
-                    .no-print { display: none !important; }
-                    body { padding: 0; }
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                 }
             </style>
         </head>
         <body>
-            <button class="no-print" onclick="window.print()" style="padding: 10px 20px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-bottom: 20px;">🖨️ Kliknij tutaj, aby wydrukować</button>
+            <div class="container">
         """
         
         html_body = ""
@@ -280,10 +278,11 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
             """
             
         html_footer = f"""
-            <script>
+            </div> <script>
                 window.onload = function() {{
                     {js_scripts}
-                    setTimeout(function() {{ window.print(); }}, 500);
+                    // Po wygenerowaniu kodów kreskowych automatycznie otwórz okno drukowania
+                    setTimeout(function() {{ window.print(); }}, 600);
                 }};
             </script>
         </body>
@@ -292,14 +291,25 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
         
         final_html = html_head + html_body + html_footer
         
-        # Pobieranie gotowego pliku
         st.divider()
-        st.download_button(
-            label="💾 POBIERZ GOTOWY ARKUSZ DO DRUKU (HTML)",
-            data=final_html,
-            file_name="wydruk_dealz.html",
-            mime="text/html",
-            use_container_width=True
-        )
+        st.info("Poniższy przycisk otworzy nową kartę i automatycznie uruchomi systemowe okno drukowania.")
+        
+        # Konwertujemy HTML do JSON-a, żeby bezpiecznie wstrzyknąć go do JavaScriptu
+        html_json = json.dumps(final_html)
+        
+        # Streamlit Component z przyciskiem wstrzykującym HTML do nowej karty
+        st.components.v1.html(f"""
+            <button onclick="openPrintWindow()" style="padding: 12px 20px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; font-weight: bold; font-family: sans-serif; transition: background 0.3s;">
+                🖨️ OTWÓRZ OKNO DRUKOWANIA
+            </button>
+            <script>
+            function openPrintWindow() {{
+                var printWindow = window.open('', '_blank');
+                printWindow.document.open();
+                printWindow.document.write({html_json});
+                printWindow.document.close();
+            }}
+            </script>
+        """, height=60)
     else:
-        st.info("Zaznacz przynajmniej jeden produkt, aby wygenerować arkusz do druku.")
+        st.info("Zaznacz przynajmniej jeden produkt, aby przygotować wydruk.")
