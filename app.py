@@ -120,7 +120,6 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
     st.divider()
     df = st.session_state['df_wyniki']
     
-    # Pasek z przyciskiem czyszczenia
     col_dash1, col_dash2 = st.columns([4, 1])
     with col_dash1:
         st.subheader("🎯 Panel misji")
@@ -131,7 +130,6 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
             del st.session_state['df_wyniki']
             st.rerun()
     
-    # 1. Pastelowe Kafelki Podsumowujące
     nowosci_cnt = len(df[df['Status'] == 'NOWOŚĆ'])
     zmiany_cnt = len(df[df['Status'] == 'ZMIANA CENY'])
     koniec_cnt = len(df[df['Status'] == 'KONIEC PROMOCJI'])
@@ -153,7 +151,6 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
     </div>
     """, unsafe_allow_html=True)
 
-    # 2. Zakładki misji (Filtrowanie)
     widok = st.radio("Wybierz widok roboczy:", ["📋 WSZYSTKIE", "🟢 TYLKO NOWOŚCI", "🟡 TYLKO ZMIANY CEN", "🔴 TYLKO KONIEC PROMOCJI"], horizontal=True)
     
     df_filtered = df.copy()
@@ -161,7 +158,6 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
     elif widok == "🟡 TYLKO ZMIANY CEN": df_filtered = df_filtered[df_filtered['Status'] == 'ZMIANA CENY']
     elif widok == "🔴 TYLKO KONIEC PROMOCJI": df_filtered = df_filtered[df_filtered['Status'] == 'KONIEC PROMOCJI']
 
-    # 3. Przejrzysta Tabela
     edytowany_df = st.data_editor(
         df_filtered,
         hide_index=True,
@@ -174,7 +170,7 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
         }
     )
     
-    # --- GENEROWANIE WYDRUKU HTML DO POBRANIA ---
+    # --- GENEROWANIE WYDRUKU HTML DO POBRANIA (TRYB KOMPAKTOWY) ---
     do_druku_df = edytowany_df[edytowany_df["🖨️ Do druku"] == True]
     if not do_druku_df.empty:
         html_content = f"""
@@ -185,23 +181,27 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
             <title>Lista Zmian Cen Dealz</title>
             <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
             <style>
-                @page {{ size: A4 portrait; margin: 10mm; }}
+                @page {{ size: A4 portrait; margin: 8mm; }}
                 * {{ box-sizing: border-box; }}
-                body {{ font-family: sans-serif; margin: 0; padding: 0; }}
-                .container {{ width: 190mm; margin: 0 auto; }}
-                .departament-header {{ color: #666; font-size: 14pt; font-weight: bold; margin-top: 20px; border-bottom: 2px solid #eee; text-transform: uppercase; padding-bottom: 4px; page-break-after: avoid; }}
-                .product-row {{ display: flex; align-items: center; border-bottom: 1px solid #f0f0f0; padding: 12px 0; page-break-inside: avoid; width: 100%; }}
-                .col-sku {{ width: 22%; }}
-                .sku-text {{ font-size: 11pt; font-weight: bold; margin-bottom: 4px; }}
-                .col-nazwa {{ width: 43%; padding: 0 10px; }}
-                .status-label {{ font-size: 8pt; color: #0056b3; font-weight: bold; text-transform: uppercase; margin-bottom: 3px; }}
-                .nazwa-text {{ font-size: 11pt; font-weight: bold; color: #222; }}
-                .col-ceny {{ width: 20%; display: flex; flex-direction: column; align-items: center; }}
-                .cena-stara {{ text-decoration: line-through; color: #888; font-size: 9pt; }}
-                .cena-nowa {{ font-size: 18pt; font-weight: bold; color: #000; }}
-                .mechanizm {{ font-size: 9pt; font-weight: bold; background: #f0f0f0; padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc; margin-top: 2px; text-align: center; }}
-                .col-ean {{ width: 15%; text-align: right; font-size: 8pt; color: #999; }}
-                svg {{ max-height: 40px; width: 100%; object-fit: contain; }}
+                body {{ font-family: sans-serif; margin: 0; padding: 0; font-size: 8pt; }}
+                .container {{ width: 194mm; margin: 0 auto; }}
+                .departament-header {{ color: #444; font-size: 10pt; font-weight: bold; margin-top: 10px; border-bottom: 1.5px solid #ccc; text-transform: uppercase; padding-bottom: 2px; page-break-after: avoid; }}
+                .product-row {{ display: flex; align-items: center; border-bottom: 1px solid #eee; padding: 4px 0; page-break-inside: avoid; width: 100%; }}
+                
+                /* Nowe szerokości po usunięciu kolumny EAN */
+                .col-sku {{ width: 25%; padding-right: 5px; }}
+                .col-nazwa {{ width: 55%; padding: 0 5px; }}
+                .col-ceny {{ width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; padding-right: 5px; }}
+                
+                .sku-text {{ font-size: 8pt; font-weight: bold; margin-bottom: 2px; }}
+                .status-label {{ font-size: 6pt; color: #0056b3; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; }}
+                .nazwa-text {{ font-size: 8pt; font-weight: bold; color: #222; line-height: 1.1; }}
+                
+                .cena-stara {{ text-decoration: line-through; color: #888; font-size: 7pt; margin-bottom: 1px; }}
+                .cena-nowa {{ font-size: 11pt; font-weight: bold; color: #000; }}
+                .mechanizm {{ font-size: 7pt; font-weight: bold; background: #f0f0f0; padding: 1px 4px; border-radius: 3px; border: 1px solid #ccc; margin-top: 2px; text-align: center; }}
+                
+                svg {{ max-height: 20px; width: 100%; object-fit: contain; display: block; margin-top: 2px; }}
             </style>
         </head>
         <body>
@@ -215,9 +215,10 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
                 curr_dept = row['Departament']
             
             ean, sku = str(row['EAN']), str(row['SKU'])
-            barcode_html = f"<svg id='b{sku}'></svg>" if ean.isdigit() and ean != "BRAK_EAN" else "<div style='font-size:7pt;color:#ccc;margin-top:10px;'>Brak EAN</div>"
+            barcode_html = f"<svg id='b{sku}'></svg>" if ean.isdigit() and ean != "BRAK_EAN" else "<div style='font-size:6pt;color:#ccc;margin-top:2px;'>Brak EAN</div>"
             if ean.isdigit() and ean != "BRAK_EAN":
-                js_barcode_calls += f"JsBarcode('#b{sku}', '{ean}', {{format:'CODE128',width:1.8,height:40,displayValue:false,margin:0}});"
+                # Zmniejszona wysokość z 40 na 20, szerokość dopasowana do mniejszego okienka
+                js_barcode_calls += f"JsBarcode('#b{sku}', '{ean}', {{format:'CODE128',width:1.5,height:20,displayValue:false,margin:0}});"
             
             stara_cena = f"Reg: {row['Stara Cena']} zł" if row['Status'] != "NOWOŚĆ" else ""
             mech = f"<div class='mechanizm'>{row['Ilość/Mechanizm']}</div>" if row['Ilość/Mechanizm'] not in ["1", "-", "1 szt."] else ""
@@ -228,7 +229,6 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
                 <div class='col-sku'><div class='sku-text'>{sku}</div>{barcode_html}</div>
                 <div class='col-nazwa'><div class='status-label'>{row['Status']}</div><div class='nazwa-text'>{row['Nazwa']}</div></div>
                 <div class='col-ceny'><span class='cena-stara'>{stara_cena}</span><span class='cena-nowa'>{nowa_cena_format}</span>{mech}</div>
-                <div class='col-ean'>EAN:<br>{ean}</div>
             </div>"""
         
         html_content += f"""
@@ -243,13 +243,12 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
         </html>"""
 
         st.divider()
-        st.info("💡 **Instrukcja drukowania:** Kliknij poniższy przycisk, aby pobrać plik. Następnie otwórz pobrany plik z paska przeglądarki – okno drukowania pojawi się automatycznie.")
+        st.info("💡 **Instrukcja drukowania:** Kliknij poniższy przycisk, aby pobrać plik. Układ został maksymalnie skompresowany (czcionka 8, niższe kody, brak EAN) dla oszczędności papieru.")
         
-        # Oficjalny przycisk pobierania Streamlit
         st.download_button(
-            label="💾 POBIERZ LISTĘ ZMIAN CEN DO DRUKU (HTML)",
+            label="💾 POBIERZ ZWIĘZŁĄ LISTĘ DO DRUKU (HTML)",
             data=html_content.encode('utf-8'),
-            file_name="Lista_Zmian_Dealz.html",
+            file_name="Lista_Kompaktowa_Dealz.html",
             mime="text/html",
             use_container_width=True
         )
