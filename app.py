@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import re
 import base64
+import json
+import os
 
 # Konfiguracja strony
 st.set_page_config(page_title="Asystent Dealz", page_icon="🏷️", layout="wide")
@@ -10,12 +12,24 @@ st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    /* Delikatne ukrycie indeksu w Streamlit */
     div[data-testid="stDataEditor"] { border: 1px solid #e0e0e0; border-radius: 8px; }
     </style>
 """, unsafe_allow_html=True)
 
 st.title("🏷️ Asystent Zmiany Cen")
+
+BACKUP_FILE = 'kopia_zapasowa.json'
+
+# --- PRZYWRACANIE SESJI Z PLIKU ---
+if 'df_wyniki' not in st.session_state:
+    if os.path.exists(BACKUP_FILE):
+        try:
+            with open(BACKUP_FILE, 'r', encoding='utf-8') as f:
+                dane = json.load(f)
+            if dane:
+                st.session_state['df_wyniki'] = pd.DataFrame(dane).sort_values(by="Departament")
+        except Exception:
+            pass
 
 # --- SILNIK PARSUJĄCY (BEZ ZMIAN) ---
 def parse_text(raw_text):
@@ -95,12 +109,28 @@ if st.button("🚀 PRZETWÓRZ I PORÓWNAJ", use_container_width=True):
             if sku not in nowa_baza:
                 wyniki.append({"🖨️ Do druku": True, "Status": "KONIEC PROMOCJI", "Departament": stara_dane['Departament'], "SKU": sku, "Nazwa": stara_dane['Nazwa'], "Stara Cena": stara_dane['Stara_Cena'], "Nowa Cena": "-", "Ilość/Mechanizm": "-", "EAN": stara_dane['EAN']})
         
+        # Zapis do sesji i pliku (autozapis)
         st.session_state['df_wyniki'] = pd.DataFrame(wyniki).sort_values(by="Departament")
+        with open(BACKUP_FILE, 'w', encoding='utf-8') as f:
+            json.dump(wyniki, f, ensure_ascii=False, indent=4)
+            
+        st.rerun()
 
 # --- CENTRUM DOWODZENIA (PULPIT) ---
 if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
     st.divider()
     df = st.session_state['df_wyniki']
+    
+    # Pasek z przyciskiem czyszczenia
+    col_dash1, col_dash2 = st.columns([4, 1])
+    with col_dash1:
+        st.subheader("🎯 Panel misji")
+    with col_dash2:
+        if st.button("🗑️ Zakończ pracę (Wyczyść pamięć)", use_container_width=True):
+            if os.path.exists(BACKUP_FILE):
+                os.remove(BACKUP_FILE)
+            del st.session_state['df_wyniki']
+            st.rerun()
     
     # 1. Pastelowe Kafelki Podsumowujące
     nowosci_cnt = len(df[df['Status'] == 'NOWOŚĆ'])
@@ -125,26 +155,28 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
     """, unsafe_allow_html=True)
 
     # 2. Zakładki misji (Filtrowanie)
-    widok = st.radio("🎯 Wybierz widok roboczy:", ["📋 WSZYSTKIE", "🟢 TYLKO NOWOŚCI", "🟡 TYLKO ZMIANY CEN", "🔴 TYLKO KONIEC PROMOCJI"], horizontal=True)
+    widok = st.radio("Wybierz widok roboczy:", ["📋 WSZYSTKIE", "🟢 TYLKO NOWOŚCI", "🟡 TYLKO ZMIANY CEN", "🔴 TYLKO KONIEC PROMOCJI"], horizontal=True)
     
     df_filtered = df.copy()
     if widok == "🟢 TYLKO NOWOŚCI": df_filtered = df_filtered[df_filtered['Status'] == 'NOWOŚĆ']
     elif widok == "🟡 TYLKO ZMIANY CEN": df_filtered = df_filtered[df_filtered['Status'] == 'ZMIANA CENY']
     elif widok == "🔴 TYLKO KONIEC PROMOCJI": df_filtered = df_filtered[df_filtered['Status'] == 'KONIEC PROMOCJI']
 
-    # 3. Przejrzysta Tabela (posortowana działami)
-    # Ukrywamy kolumnę EAN w widoku roboczym, żeby odchudzić tabelę (EAN trafi na wydruk)
+    # 3. Przejrzysta Tabela
     edytowany_df = st.data_editor(
         df_filtered,
         hide_index=True,
         use_container_width=True,
         column_config={
             "🖨️ Do druku": st.column_config.CheckboxColumn(required=True),
-            "EAN": None, # Ukrywa EAN na pulpicie
+            "EAN": None, 
             "Departament": st.column_config.TextColumn(width="medium"),
             "Nazwa": st.column_config.TextColumn(width="large")
         }
     )
+    
+    # Jeśli użytkownik edytuje listę do druku, możemy to przechwycić,
+    # ale autozapis przechowuje główną, całą listę.
     
     # --- GENEROWANIE WYDRUKU HTML (Data URI) ---
     do_druku_df = edytowany_df[edytowany_df["🖨️ Do druku"] == True]
@@ -217,10 +249,10 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
         st.markdown(f"""
             <a href="{href}" target="_blank" style="text-decoration: none;">
                 <div style="padding: 15px; background-color: #0056b3; color: white; text-align: center; border-radius: 8px; font-weight: bold; font-size: 18px; cursor: pointer; border: 1px solid #004494;">
-                    🖨️ KLIKNIJ TUTAJ, ABY WYDRUKOWAĆ EKIETY (A4)
+                    🖨️ KLIKNIJ TUTAJ, ABY WYDRUKOWAĆ ETYKIETY (A4)
                 </div>
             </a>
             <p style="text-align: center; color: #666; font-size: 12px; margin-top: 8px;">
-                Link bezpiecznie otworzy nową kartę z wygenerowanym szablonem ze zdjęcia.
+                Link bezpiecznie otworzy nową kartę z wygenerowanym szablonem.
             </p>
         """, unsafe_allow_html=True)
