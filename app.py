@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import re
-import base64
 import json
 import os
 
@@ -175,24 +174,22 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
         }
     )
     
-    # Jeśli użytkownik edytuje listę do druku, możemy to przechwycić,
-    # ale autozapis przechowuje główną, całą listę.
-    
-    # --- GENEROWANIE WYDRUKU HTML (Data URI) ---
+    # --- GENEROWANIE WYDRUKU HTML DO POBRANIA ---
     do_druku_df = edytowany_df[edytowany_df["🖨️ Do druku"] == True]
     if not do_druku_df.empty:
         html_content = f"""
         <!DOCTYPE html>
-        <html>
+        <html lang="pl">
         <head>
             <meta charset="UTF-8">
+            <title>Lista Zmian Cen Dealz</title>
             <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
             <style>
                 @page {{ size: A4 portrait; margin: 10mm; }}
                 * {{ box-sizing: border-box; }}
                 body {{ font-family: sans-serif; margin: 0; padding: 0; }}
                 .container {{ width: 190mm; margin: 0 auto; }}
-                .departament-header {{ color: #666; font-size: 14pt; font-weight: bold; margin-top: 20px; border-bottom: 2px solid #eee; text-transform: uppercase; padding-bottom: 4px; }}
+                .departament-header {{ color: #666; font-size: 14pt; font-weight: bold; margin-top: 20px; border-bottom: 2px solid #eee; text-transform: uppercase; padding-bottom: 4px; page-break-after: avoid; }}
                 .product-row {{ display: flex; align-items: center; border-bottom: 1px solid #f0f0f0; padding: 12px 0; page-break-inside: avoid; width: 100%; }}
                 .col-sku {{ width: 22%; }}
                 .sku-text {{ font-size: 11pt; font-weight: bold; margin-bottom: 4px; }}
@@ -202,7 +199,7 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
                 .col-ceny {{ width: 20%; display: flex; flex-direction: column; align-items: center; }}
                 .cena-stara {{ text-decoration: line-through; color: #888; font-size: 9pt; }}
                 .cena-nowa {{ font-size: 18pt; font-weight: bold; color: #000; }}
-                .mechanizm {{ font-size: 9pt; font-weight: bold; background: #f0f0f0; padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc; }}
+                .mechanizm {{ font-size: 9pt; font-weight: bold; background: #f0f0f0; padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc; margin-top: 2px; text-align: center; }}
                 .col-ean {{ width: 15%; text-align: right; font-size: 8pt; color: #999; }}
                 svg {{ max-height: 40px; width: 100%; object-fit: contain; }}
             </style>
@@ -237,22 +234,22 @@ if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
         html_content += f"""
             </div>
             <script>
-                window.onload = function() {{ {js_barcode_calls} setTimeout(function() {{ window.print(); }}, 600); }};
+                window.onload = function() {{ 
+                    {js_barcode_calls} 
+                    setTimeout(function() {{ window.print(); }}, 600); 
+                }};
             </script>
         </body>
         </html>"""
 
-        b64_html = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
-        href = f"data:text/html;base64,{b64_html}"
-        
         st.divider()
-        st.markdown(f"""
-            <a href="{href}" target="_blank" style="text-decoration: none;">
-                <div style="padding: 15px; background-color: #0056b3; color: white; text-align: center; border-radius: 8px; font-weight: bold; font-size: 18px; cursor: pointer; border: 1px solid #004494;">
-                    🖨️ KLIKNIJ TUTAJ, ABY WYDRUKOWAĆ ETYKIETY (A4)
-                </div>
-            </a>
-            <p style="text-align: center; color: #666; font-size: 12px; margin-top: 8px;">
-                Link bezpiecznie otworzy nową kartę z wygenerowanym szablonem.
-            </p>
-        """, unsafe_allow_html=True)
+        st.info("💡 **Instrukcja drukowania:** Kliknij poniższy przycisk, aby pobrać plik. Następnie otwórz pobrany plik z paska przeglądarki – okno drukowania pojawi się automatycznie.")
+        
+        # Oficjalny przycisk pobierania Streamlit
+        st.download_button(
+            label="💾 POBIERZ LISTĘ ZMIAN CEN DO DRUKU (HTML)",
+            data=html_content.encode('utf-8'),
+            file_name="Lista_Zmian_Dealz.html",
+            mime="text/html",
+            use_container_width=True
+        )
