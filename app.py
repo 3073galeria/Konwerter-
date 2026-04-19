@@ -267,15 +267,16 @@ with tab1:
             st.download_button(
                 label="💾 POBIERZ LISTĘ DO DRUKU",
                 data=html_content.encode('utf-8'),
-                file_name="zmiana_cen.html",
+                file_name="zmiana cen.html",
                 mime="text/html",
                 use_container_width=True
             )
 
 with tab2:
     bridge_data = []
-    if 'do_druku_df' in locals() and not do_druku_df.empty:
-        df_valid = do_druku_df[do_druku_df['Status'].isin(['NOWA PROMOCJA', 'ZMIANA CENY', 'PRZEDŁUŻONA PROMOCJA'])]
+    if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
+        df_bridge = st.session_state['df_wyniki']
+        df_valid = df_bridge[df_bridge['Status'].isin(['NOWA PROMOCJA', 'ZMIANA CENY', 'PRZEDŁUŻONA PROMOCJA'])]
         for _, row in df_valid.iterrows():
             mech = str(row['Ilość/Mechanizm'])
             
@@ -444,7 +445,7 @@ with tab2:
             <button class="btn-print" onclick="downloadHTML()">🖨️ Pobierz do Druku (HTML)</button>
             <div class="divider"></div>
             <input type="text" id="searchInput" class="search-box" placeholder="🔍 Szukaj..." oninput="filterTags()">
-            <div class="hint">⚠️ <b>Zanim wydrukujesz:</b> Upewnij się, że w oknie drukarki <b>Skala = 100%</b>, a opcja <b>Dopasuj do strony jest WYŁĄCZONA!</b> | Z wciśniętym <b>CTRL</b> zaznaczasz kilka cenówek.</div>
+            <div class="hint">⚠️ <b>Zanim wydrukujesz:</b> Upewnij się, że w oknie drukarki <b>Skala = 100%</b>, a opcja <b>Dopasuj do strony jest WYŁĄCZONA!</b> | Z wciśniętym <b>CTRL</b> zaznaczasz kilka cenówek. <b>ALT + [ ]</b> pomniejsza tekst.</div>
         </div>
         <div id="pages-container"></div>
         <script>
@@ -457,7 +458,7 @@ with tab2:
 
             function importFromBridge() {
                 if (!window.BRIDGE_DATA || window.BRIDGE_DATA.length === 0) {
-                    alert("Brak danych! Przejdź do zakładki 'LISTA ZMIAN CEN', przetwórz gazetkę i upewnij się, że z lewej strony są zaznaczone checkboxy 'Do druku'!");
+                    alert("Brak danych! Przejdź do zakładki 'LISTA ZMIAN CEN' i najpierw przetwórz gazetkę.");
                     return;
                 }
                 if (confirm("Czy chcesz automatycznie wygenerować " + window.BRIDGE_DATA.length + " cenówek na podstawie dzisiejszej gazetki?")) {
@@ -474,7 +475,7 @@ with tab2:
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = "Awaryjne_Cenowki_Dealz.html";
+                a.download = "Cenowki_Do_Druku.html";
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -530,13 +531,16 @@ with tab2:
                 element.querySelectorAll('.auto-date').forEach(el => el.textContent = formatDaty);
             }
 
+            function formatCleanPrice(num) {
+                if (isNaN(num)) return "0";
+                let str = Number(num).toFixed(2).replace('.', ',');
+                if (str.endsWith(',00')) return str.replace(',00', '');
+                return str;
+            }
+
             function recalculateMath(tag) {
                 if (!tag) return;
                 const isPromo = tag.classList.contains('promo');
-
-                // --- INTELIGENTNE WYKRYWANIE POJEMNOŚCI Z NAZWY ---
-                const nameText = (tag.querySelector('.product-name').textContent || "").toLowerCase().replace(',', '.');
-                const capMatch = nameText.match(/(\\d+(?:\\.\\d+)?)\\s*(ml|l|g|kg)\\b/i);
 
                 if (isPromo) {
                     const qtyMatch = (tag.querySelector('.promo-amount').textContent || "").match(/\\d+/);
@@ -546,21 +550,7 @@ with tab2:
                     const pPrice = parseFloat(pText);
                     
                     if (!isNaN(pPrice) && qty > 0) {
-                        let pricePerPiece = pPrice / qty;
-                        let calcPrice = pricePerPiece;
-                        let unitStr = "1szt";
-
-                        if (capMatch) {
-                            let amount = parseFloat(capMatch[1]);
-                            let u = capMatch[2];
-                            if (amount > 0) {
-                                if (u === 'ml') { calcPrice = (pricePerPiece / amount) * 100; unitStr = "100ml"; }
-                                else if (u === 'l') { calcPrice = (pricePerPiece / amount) * 1; unitStr = "1L"; }
-                                else if (u === 'g') { calcPrice = (pricePerPiece / amount) * 100; unitStr = "100g"; }
-                                else if (u === 'kg') { calcPrice = (pricePerPiece / amount) * 1; unitStr = "1kg"; }
-                            }
-                        }
-                        tag.querySelector('.unit-price-promo').textContent = calcPrice.toFixed(2).replace('.', ',') + " " + pCurr + " za " + unitStr;
+                        tag.querySelector('.unit-price-promo').textContent = (pPrice / qty).toFixed(2).replace('.', ',') + " " + pCurr + " za 1szt";
                     }
 
                     const rCurr = (tag.querySelector('.regular-currency').textContent || "PLN").trim();
@@ -568,20 +558,7 @@ with tab2:
                     const rPrice = parseFloat(rText);
 
                     if (!isNaN(rPrice)) {
-                        let calcReg = rPrice;
-                        let unitStrReg = "1szt";
-                        
-                        if (capMatch) {
-                            let amount = parseFloat(capMatch[1]);
-                            let u = capMatch[2];
-                            if (amount > 0) {
-                                if (u === 'ml') { calcReg = (rPrice / amount) * 100; unitStrReg = "100ml"; }
-                                else if (u === 'l') { calcReg = (rPrice / amount) * 1; unitStrReg = "1L"; }
-                                else if (u === 'g') { calcReg = (rPrice / amount) * 100; unitStrReg = "100g"; }
-                                else if (u === 'kg') { calcReg = (rPrice / amount) * 1; unitStrReg = "1kg"; }
-                            }
-                        }
-                        tag.querySelector('.unit-price-regular').textContent = calcReg.toFixed(2).replace('.', ',') + " " + rCurr + " za " + unitStrReg;
+                        tag.querySelector('.unit-price-regular').textContent = rPrice.toFixed(2).replace('.', ',') + " " + rCurr + " za 1szt";
                         tag.querySelector('.omnibus-price').textContent = rPrice.toFixed(2).replace('.', ',') + " " + rCurr;
                     }
                 } else {
@@ -590,20 +567,7 @@ with tab2:
                     const sPrice = parseFloat(sText);
 
                     if (!isNaN(sPrice)) {
-                        let calcStd = sPrice;
-                        let unitStrStd = "1szt";
-                        
-                        if (capMatch) {
-                            let amount = parseFloat(capMatch[1]);
-                            let u = capMatch[2];
-                            if (amount > 0) {
-                                if (u === 'ml') { calcStd = (sPrice / amount) * 100; unitStrStd = "100ml"; }
-                                else if (u === 'l') { calcStd = (sPrice / amount) * 1; unitStrStd = "1L"; }
-                                else if (u === 'g') { calcStd = (sPrice / amount) * 100; unitStrStd = "100g"; }
-                                else if (u === 'kg') { calcStd = (sPrice / amount) * 1; unitStrStd = "1kg"; }
-                            }
-                        }
-                        tag.querySelector('.std-unit-price').textContent = calcStd.toFixed(2).replace('.', ',') + " " + curr + " za " + unitStrStd;
+                        tag.querySelector('.std-unit-price').textContent = sPrice.toFixed(2).replace('.', ',') + " " + curr + " za 1szt";
                         tag.querySelector('.omnibus-price').textContent = sPrice.toFixed(2).replace('.', ',') + " " + curr;
                     }
                 }
@@ -831,8 +795,7 @@ with tab2:
                 if (priceTag && (e.target.classList.contains('promo-price') || 
                                  e.target.classList.contains('regular-price') || 
                                  e.target.classList.contains('promo-amount') || 
-                                 e.target.classList.contains('std-price') ||
-                                 e.target.classList.contains('product-name'))) { // UWAGA: dodane nasłuchiwanie na zmianę nazwy!
+                                 e.target.classList.contains('std-price'))) {
                     recalculateMath(priceTag);
                 }
 
