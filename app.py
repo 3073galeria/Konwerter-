@@ -102,10 +102,27 @@ with tab1:
             nowa_baza = parse_text(nowa_text)
             wyniki = []
             
+            # TŁUMACZ MECHANIZMÓW (WYCISKA TYLKO CYFRĘ)
+            def norm_mech(m):
+                m_str = str(m).lower()
+                if 'wielo' in m_str: return 'w'
+                nums = re.search(r'\d+', m_str)
+                return nums.group() if nums else '1'
+
             for sku, nowa_dane in nowa_baza.items():
-                status = "NOWOŚĆ" if sku not in stara_baza else ("ZMIANA CENY" if nowa_dane != stara_baza[sku] else "BEZ ZMIAN")
-                if status != "BEZ ZMIAN":
-                    wyniki.append({"🖨️ Do druku": True, "Status": status, "Departament": nowa_dane['Departament'], "SKU": sku, "Nazwa": nowa_dane['Nazwa'], "Stara Cena": nowa_dane['Stara_Cena'], "Nowa Cena": nowa_dane['Nowa_Cena'], "Ilość/Mechanizm": nowa_dane['Mechanizm'], "EAN": nowa_dane['EAN']})
+                if sku not in stara_baza:
+                    status = "NOWOŚĆ"
+                else:
+                    stara = stara_baza[sku]
+                    nowa = nowa_dane
+                    czy_cena_sie_zmienila = (
+                        stara['Nowa_Cena'] != nowa['Nowa_Cena'] or
+                        stara['Stara_Cena'] != nowa['Stara_Cena'] or
+                        norm_mech(stara['Mechanizm']) != norm_mech(nowa['Mechanizm'])
+                    )
+                    status = "ZMIANA CENY" if czy_cena_sie_zmienila else "PRZEDŁUŻONA PROMOCJA"
+                
+                wyniki.append({"🖨️ Do druku": True, "Status": status, "Departament": nowa_dane['Departament'], "SKU": sku, "Nazwa": nowa_dane['Nazwa'], "Stara Cena": nowa_dane['Stara_Cena'], "Nowa Cena": nowa_dane['Nowa_Cena'], "Ilość/Mechanizm": nowa_dane['Mechanizm'], "EAN": nowa_dane['EAN']})
             
             for sku, stara_dane in stara_baza.items():
                 if sku not in nowa_baza:
@@ -133,6 +150,7 @@ with tab1:
         
         nowosci_cnt = len(df[df['Status'] == 'NOWOŚĆ'])
         zmiany_cnt = len(df[df['Status'] == 'ZMIANA CENY'])
+        przedluzone_cnt = len(df[df['Status'] == 'PRZEDŁUŻONA PROMOCJA'])
         koniec_cnt = len(df[df['Status'] == 'KONIEC PROMOCJI'])
         
         st.markdown(f"""
@@ -145,18 +163,23 @@ with tab1:
                 <div style="font-size: 14px; text-transform: uppercase; font-weight: bold; margin-bottom: 5px;">🟡 Zmiany Cen</div>
                 <div style="font-size: 32px; font-weight: bold;">{zmiany_cnt}</div>
             </div>
+            <div style="flex: 1; background-color: #e2d9f3; border-radius: 8px; padding: 15px; text-align: center; color: #4a148c; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 14px; text-transform: uppercase; font-weight: bold; margin-bottom: 5px;">🟣 Przedłużone</div>
+                <div style="font-size: 32px; font-weight: bold;">{przedluzone_cnt}</div>
+            </div>
             <div style="flex: 1; background-color: #f8d7da; border-radius: 8px; padding: 15px; text-align: center; color: #721c24; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="font-size: 14px; text-transform: uppercase; font-weight: bold; margin-bottom: 5px;">🔴 Koniec Promocji</div>
+                <div style="font-size: 14px; text-transform: uppercase; font-weight: bold; margin-bottom: 5px;">🔴 Koniec Prom.</div>
                 <div style="font-size: 32px; font-weight: bold;">{koniec_cnt}</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        widok = st.radio("Wybierz widok roboczy:", ["📋 WSZYSTKIE", "🟢 TYLKO NOWOŚCI", "🟡 TYLKO ZMIANY CEN", "🔴 TYLKO KONIEC PROMOCJI"], horizontal=True)
+        widok = st.radio("Wybierz widok roboczy:", ["📋 WSZYSTKIE", "🟢 TYLKO NOWOŚCI", "🟡 TYLKO ZMIANY CEN", "🟣 TYLKO PRZEDŁUŻONE", "🔴 TYLKO KONIEC PROMOCJI"], horizontal=True)
         
         df_filtered = df.copy()
         if widok == "🟢 TYLKO NOWOŚCI": df_filtered = df_filtered[df_filtered['Status'] == 'NOWOŚĆ']
         elif widok == "🟡 TYLKO ZMIANY CEN": df_filtered = df_filtered[df_filtered['Status'] == 'ZMIANA CENY']
+        elif widok == "🟣 TYLKO PRZEDŁUŻONE": df_filtered = df_filtered[df_filtered['Status'] == 'PRZEDŁUŻONA PROMOCJA']
         elif widok == "🔴 TYLKO KONIEC PROMOCJI": df_filtered = df_filtered[df_filtered['Status'] == 'KONIEC PROMOCJI']
 
         edytowany_df = st.data_editor(
@@ -246,17 +269,17 @@ with tab1:
             )
 
 with tab2:
-    # --- PRZYGOTOWANIE DANYCH DLA MAGICZNEGO MOSTRU ---
     bridge_data = []
     if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
         df_bridge = st.session_state['df_wyniki']
-        df_valid = df_bridge[df_bridge['Status'].isin(['NOWOŚĆ', 'ZMIANA CENY'])]
+        df_valid = df_bridge[df_bridge['Status'].isin(['NOWOŚĆ', 'ZMIANA CENY', 'PRZEDŁUŻONA PROMOCJA'])]
         for _, row in df_valid.iterrows():
             mech = str(row['Ilość/Mechanizm'])
-            is_promo = True if ('szt' in mech and mech != '1 szt.') or 'Wielosztuka' in mech else False
             
             qty_match = re.search(r'\d+', mech)
             qty_val = qty_match.group() if qty_match else "1"
+            
+            is_promo = True if int(qty_val) > 1 else False
 
             try: p_price = float(str(row['Nowa Cena']).replace(',', '.')) if row['Nowa Cena'] != '-' else 0
             except: p_price = 0
@@ -276,7 +299,6 @@ with tab2:
                 }
             })
 
-    # --- KOD HTML GENERATORA ---
     html_head = """
     <!DOCTYPE html>
     <html lang="pl">
@@ -436,7 +458,6 @@ with tab2:
                 }
             }
 
-            // Kuloodporny patent na druk - pobiera plik, żeby ominąć blokady przeglądarek
             function downloadHTML() {
                 const htmlContent = "<!DOCTYPE html>\\n<html lang='pl'>\\n<head>\\n" + document.head.innerHTML + "\\n</head>\\n<body>\\n" + document.body.innerHTML + "\\n</body>\\n</html>";
                 const blob = new Blob([htmlContent], { type: 'text/html' });
@@ -612,7 +633,8 @@ with tab2:
                         clone.querySelector('.promo-price').textContent = formatCleanPrice(customData.promoPriceTotal);
                         clone.querySelector('.regular-price').textContent = formatCleanPrice(customData.regPrice);
                     } else {
-                        clone.querySelector('.std-price').textContent = formatCleanPrice(customData.regPrice);
+                        const stdTargetPrice = (customData.promoPriceTotal && customData.promoPriceTotal > 0) ? customData.promoPriceTotal : customData.regPrice;
+                        clone.querySelector('.std-price').textContent = formatCleanPrice(stdTargetPrice);
                     }
                     
                     recalculateMath(priceTag);
@@ -824,7 +846,6 @@ with tab2:
                 });
             }
             
-            // Po otwarciu aplikacji sprawdzamy, czy w trybie do druku należy podnieść okno
             if(window.location.href.startsWith("blob:")) {
                  window.onload = function() { setTimeout(function(){ window.print(); }, 800); };
             }
