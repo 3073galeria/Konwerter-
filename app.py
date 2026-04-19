@@ -5,17 +5,73 @@ import json
 import os
 
 # Konfiguracja strony
-st.set_page_config(page_title="Asystent Dealz", page_icon="🏷️", layout="wide")
+st.set_page_config(page_title="Menadżer Cenówek", page_icon="🏷️", layout="wide")
 
+# --- NOWOCZESNY WYGLĄD (CSS) ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    div[data-testid="stDataEditor"] { border: 1px solid #e0e0e0; border-radius: 8px; }
+    header {visibility: hidden;}
+    
+    .stApp { background-color: #f8f9fa; }
+    
+    div[data-testid="stDataEditor"] { 
+        border: 1px solid #e0e0e0; 
+        border-radius: 12px; 
+        background-color: #ffffff;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    }
+    
+    div.stButton > button:first-child {
+        background-color: #00bcd4; 
+        color: white; 
+        border-radius: 8px; 
+        font-weight: bold; 
+        border: none; 
+        transition: all 0.3s ease;
+    }
+    div.stButton > button:first-child:hover { 
+        background-color: #0097a7; 
+        box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3); 
+        color: white;
+    }
+    
+    div.stDownloadButton > button:first-child {
+        background-color: #4CAF50; 
+        color: white; 
+        border-radius: 8px; 
+        font-weight: bold; 
+        width: 100%; 
+        border: none; 
+        transition: all 0.3s ease;
+    }
+    div.stDownloadButton > button:first-child:hover { 
+        background-color: #43a047; 
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3); 
+        color: white;
+    }
+    
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: transparent;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: #ffffff; 
+        border-radius: 8px 8px 0 0; 
+        padding: 10px 20px; 
+        border: 1px solid #e0e0e0;
+        border-bottom: none;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #00bcd4 !important; 
+        color: white !important;
+        border-color: #00bcd4 !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🏷️ System Zarządzania Cenami")
+st.title("🏷️ Menadżer Cenówek")
 
 BACKUP_FILE = 'kopia_zapasowa.json'
 
@@ -102,7 +158,6 @@ with tab1:
             nowa_baza = parse_text(nowa_text)
             wyniki = []
             
-            # TŁUMACZ MECHANIZMÓW (WYCISKA TYLKO CYFRĘ)
             def norm_mech(m):
                 m_str = str(m).lower()
                 if 'wielo' in m_str: return 'w'
@@ -111,7 +166,7 @@ with tab1:
 
             for sku, nowa_dane in nowa_baza.items():
                 if sku not in stara_baza:
-                    status = "NOWOŚĆ"
+                    status = "NOWA PROMOCJA"
                 else:
                     stara = stara_baza[sku]
                     nowa = nowa_dane
@@ -140,15 +195,15 @@ with tab1:
         
         col_dash1, col_dash2 = st.columns([4, 1])
         with col_dash1:
-            st.subheader("🎯 Panel misji")
+            st.subheader("🎯 Panel roboczy")
         with col_dash2:
-            if st.button("🗑️ Zakończ pracę (Wyczyść pamięć)", use_container_width=True, key="clear_btn"):
+            if st.button("🗑️ Zakończ pracę", use_container_width=True, key="clear_btn"):
                 if os.path.exists(BACKUP_FILE):
                     os.remove(BACKUP_FILE)
                 del st.session_state['df_wyniki']
                 st.rerun()
         
-        nowosci_cnt = len(df[df['Status'] == 'NOWOŚĆ'])
+        nowosci_cnt = len(df[df['Status'] == 'NOWA PROMOCJA'])
         zmiany_cnt = len(df[df['Status'] == 'ZMIANA CENY'])
         przedluzone_cnt = len(df[df['Status'] == 'PRZEDŁUŻONA PROMOCJA'])
         koniec_cnt = len(df[df['Status'] == 'KONIEC PROMOCJI'])
@@ -156,7 +211,7 @@ with tab1:
         st.markdown(f"""
         <div style="display: flex; gap: 15px; margin-bottom: 25px;">
             <div style="flex: 1; background-color: #d4edda; border-radius: 8px; padding: 15px; text-align: center; color: #155724; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="font-size: 14px; text-transform: uppercase; font-weight: bold; margin-bottom: 5px;">🟢 Nowości</div>
+                <div style="font-size: 14px; text-transform: uppercase; font-weight: bold; margin-bottom: 5px;">🟢 nowa promocja</div>
                 <div style="font-size: 32px; font-weight: bold;">{nowosci_cnt}</div>
             </div>
             <div style="flex: 1; background-color: #fff3cd; border-radius: 8px; padding: 15px; text-align: center; color: #856404; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
@@ -174,10 +229,10 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
 
-        widok = st.radio("Wybierz widok roboczy:", ["📋 WSZYSTKIE", "🟢 TYLKO NOWOŚCI", "🟡 TYLKO ZMIANY CEN", "🟣 TYLKO PRZEDŁUŻONE", "🔴 TYLKO KONIEC PROMOCJI"], horizontal=True)
+        widok = st.radio("Wybierz widok roboczy:", ["📋 WSZYSTKIE", "🟢 TYLKO NOWE PROMOCJE", "🟡 TYLKO ZMIANY CEN", "🟣 TYLKO PRZEDŁUŻONE", "🔴 TYLKO KONIEC PROMOCJI"], horizontal=True)
         
         df_filtered = df.copy()
-        if widok == "🟢 TYLKO NOWOŚCI": df_filtered = df_filtered[df_filtered['Status'] == 'NOWOŚĆ']
+        if widok == "🟢 TYLKO NOWE PROMOCJE": df_filtered = df_filtered[df_filtered['Status'] == 'NOWA PROMOCJA']
         elif widok == "🟡 TYLKO ZMIANY CEN": df_filtered = df_filtered[df_filtered['Status'] == 'ZMIANA CENY']
         elif widok == "🟣 TYLKO PRZEDŁUŻONE": df_filtered = df_filtered[df_filtered['Status'] == 'PRZEDŁUŻONA PROMOCJA']
         elif widok == "🔴 TYLKO KONIEC PROMOCJI": df_filtered = df_filtered[df_filtered['Status'] == 'KONIEC PROMOCJI']
@@ -206,7 +261,7 @@ with tab1:
                 <style>
                     @page {{ size: A4 portrait; margin: 8mm; }}
                     * {{ box-sizing: border-box; }}
-                    body {{ font-family: sans-serif; margin: 0; padding: 0; font-size: 8pt; }}
+                    body {{ font-family: sans-serif; margin: 0; padding: 0; font-size: 8pt; background-color: white; }}
                     .container {{ width: 194mm; margin: 0 auto; }}
                     .departament-header {{ color: #444; font-size: 10pt; font-weight: bold; margin-top: 10px; border-bottom: 1.5px solid #ccc; text-transform: uppercase; padding-bottom: 2px; page-break-after: avoid; }}
                     .product-row {{ display: flex; align-items: center; border-bottom: 1px solid #eee; padding: 4px 0; page-break-inside: avoid; width: 100%; }}
@@ -237,7 +292,7 @@ with tab1:
                 if ean.isdigit() and ean != "BRAK_EAN":
                     js_barcode_calls += f"JsBarcode('#b{sku}', '{ean}', {{format:'CODE128',width:1.5,height:20,displayValue:false,margin:0}});"
                 
-                stara_cena = f"Reg: {row['Stara Cena']} zł" if row['Status'] != "NOWOŚĆ" else ""
+                stara_cena = f"Reg: {row['Stara Cena']} zł" if row['Status'] != "NOWA PROMOCJA" else ""
                 mech = f"<div class='mechanizm'>{row['Ilość/Mechanizm']}</div>" if row['Ilość/Mechanizm'] not in ["1", "-", "1 szt."] else ""
                 nowa_cena_format = f"{row['Nowa Cena']} zł" if row['Nowa Cena'] != "-" else "-"
                 
@@ -260,10 +315,13 @@ with tab1:
             </html>"""
 
             st.divider()
+            
+            st.info("⚠️ **PAMIĘTAJ PRZED WYDRUKIEM:** Po kliknięciu przycisku poniżej, w oknie swojej drukarki upewnij się, że **Skala to 100% (Rozmiar rzeczywisty)** i wyłączona jest opcja **'Dopasuj do strony'**.")
+            
             st.download_button(
-                label="💾 POBIERZ ZWIĘZŁĄ LISTĘ DO DRUKU (HTML)",
+                label="💾 POBIERZ LISTĘ DO DRUKU",
                 data=html_content.encode('utf-8'),
-                file_name="Lista_Kompaktowa_Dealz.html",
+                file_name="zmiana cen.html",
                 mime="text/html",
                 use_container_width=True
             )
@@ -272,14 +330,16 @@ with tab2:
     bridge_data = []
     if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
         df_bridge = st.session_state['df_wyniki']
-        df_valid = df_bridge[df_bridge['Status'].isin(['NOWOŚĆ', 'ZMIANA CENY', 'PRZEDŁUŻONA PROMOCJA'])]
+        df_valid = df_bridge[df_bridge['Status'].isin(['NOWA PROMOCJA', 'ZMIANA CENY', 'PRZEDŁUŻONA PROMOCJA'])]
         for _, row in df_valid.iterrows():
             mech = str(row['Ilość/Mechanizm'])
             
             qty_match = re.search(r'\d+', mech)
             qty_val = qty_match.group() if qty_match else "1"
             
-            is_promo = True if int(qty_val) > 1 else False
+            is_promo = True if (int(qty_val) > 1 or 'wielo' in mech.lower()) else False
+            if 'wielo' in mech.lower() and int(qty_val) == 1:
+                qty_val = "2"
 
             try: p_price = float(str(row['Nowa Cena']).replace(',', '.')) if row['Nowa Cena'] != '-' else 0
             except: p_price = 0
@@ -307,28 +367,31 @@ with tab2:
         <title>Generator Cenówek</title>
         <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+39&display=swap" rel="stylesheet">
         <style>
-            body { background-color: #e0e0e0; margin: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; padding-bottom: 50px; }
-            .controls { position: sticky; top: 0; background-color: #333; width: 100%; padding: 15px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 100; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; }
-            .controls button { background-color: #fff; border: none; padding: 10px 15px; font-size: 14px; cursor: pointer; border-radius: 5px; font-weight: bold; transition: 0.2s; }
-            .controls button:hover { filter: brightness(0.9); }
+            body { background-color: #f8f9fa; margin: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; padding-bottom: 50px; }
+            .controls { position: sticky; top: 0; background-color: #2c3e50; width: 100%; padding: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); z-index: 100; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; }
+            .controls button { background-color: #fff; border: none; padding: 10px 15px; font-size: 14px; cursor: pointer; border-radius: 6px; font-weight: bold; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+            .controls button:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
             .btn-add { background-color: #f1f1f1; color: #333; }
-            .btn-danger { background-color: #dc3545 !important; color: white; }
-            .btn-warning { background-color: #ff9800 !important; color: white; }
-            .btn-import-csv { background-color: #17a2b8 !important; color: white; }
-            .btn-print { background-color: #4CAF50 !important; color: white; }
-            .btn-bridge { background-color: #ff4081 !important; color: white; border: 2px solid #fff !important; }
-            .btn-duplicate { background-color: #ffc107 !important; color: #000; }
-            .search-box { padding: 9px 15px; border-radius: 5px; border: none; outline: none; width: 220px; font-size: 14px; }
+            .btn-danger { background-color: #e74c3c !important; color: white; }
+            .btn-warning { background-color: #f39c12 !important; color: white; }
+            .btn-import-csv { background-color: #3498db !important; color: white; }
+            .btn-print { background-color: #2ecc71 !important; color: white; }
+            .btn-bridge { background-color: #9b59b6 !important; color: white; border: 2px solid #fff !important; }
+            .btn-duplicate { background-color: #f1c40f !important; color: #333; }
+            .search-box { padding: 9px 15px; border-radius: 6px; border: none; outline: none; width: 220px; font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
             .divider { width: 2px; height: 30px; background-color: #555; margin: 0 5px; }
-            .hint { width: 100%; color: #aaa; font-size: 12px; margin-top: 5px; }
-            .a4-page { background-color: #fff; width: 210mm; height: 297mm; padding: 10mm; margin: 20px auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; display: grid; grid-template-columns: repeat(2, 75mm); grid-auto-rows: 37mm; justify-content: center; align-content: start; gap: 2mm 10mm; position: relative; }
+            .hint { width: 100%; color: #bdc3c7; font-size: 13px; margin-top: 8px; }
+            
+            .a4-page { background-color: #fff; width: 210mm; height: 297mm; padding: 10mm; margin: 20px auto; box-shadow: 0 10px 30px rgba(0,0,0,0.1); box-sizing: border-box; display: grid; grid-template-columns: repeat(2, 75mm); grid-auto-rows: 37mm; justify-content: center; align-content: start; gap: 2mm 10mm; position: relative; border-radius: 4px; }
             .page-number { position: absolute; bottom: 5mm; right: 10mm; font-size: 12px; color: #999; }
-            .tag-wrapper { width: 75mm; height: 37mm; position: relative; box-sizing: border-box; border: 1px dashed #888; background-color: #ffffff; overflow: hidden; cursor: pointer; }
-            .tag-wrapper.selected { border: 2px solid #007bff; background-color: #f8fbff; }
+            .tag-wrapper { width: 75mm; height: 37mm; position: relative; box-sizing: border-box; border: 1px dashed #ccc; background-color: #ffffff; overflow: hidden; cursor: pointer; transition: 0.1s; }
+            .tag-wrapper:hover { border-color: #3498db; }
+            .tag-wrapper.selected { border: 2px solid #00bcd4; background-color: #f0fbff; box-shadow: inset 0 0 10px rgba(0, 188, 212, 0.1); }
             .price-tag { width: 750px; height: 370px; position: absolute; top: 0; left: 0; color: #333; transform: scale(0.37795); transform-origin: top left; pointer-events: none; }
             .price-tag > * { pointer-events: auto; } 
-            [contenteditable="true"]:hover { background-color: rgba(0, 0, 0, 0.05); outline: 2px dashed #999; cursor: text; }
-            [contenteditable="true"]:focus { background-color: rgba(0, 123, 255, 0.1); outline: 2px solid #007bff; cursor: text; }
+            [contenteditable="true"]:hover { background-color: rgba(0, 0, 0, 0.05); outline: 2px dashed #999; cursor: text; border-radius: 4px; }
+            [contenteditable="true"]:focus { background-color: rgba(0, 188, 212, 0.1); outline: 2px solid #00bcd4; cursor: text; border-radius: 4px; }
+            
             .meta-code { position: absolute; font-size: 16px; letter-spacing: 1px; }
             .barcode { position: absolute; font-family: 'Libre Barcode 39', cursive; font-size: 60px; line-height: 0.8; font-weight: normal; pointer-events: none; }
             .barcode-numbers { position: absolute; font-size: 15px; letter-spacing: 5px; }
@@ -336,6 +399,7 @@ with tab2:
             .omnibus-text { text-align: left; }
             .omnibus-price { font-size: 16px; font-weight: bold; }
             .product-name { position: absolute; overflow: hidden; display: flex; align-items: flex-start; align-content: flex-start; flex-wrap: wrap; line-height: 0.95; }
+            
             .promo .promo-amount { position: absolute; top: 15px; left: 30px; font-size: 70px; font-weight: bold; line-height: 1; color: #000; }
             .promo .promo-price-container { position: absolute; top: 85px; left: 30px; display: flex; align-items: flex-end; }
             .promo .promo-price { font-size: 120px; font-weight: bold; line-height: 0.8; color: #000; }
@@ -350,6 +414,7 @@ with tab2:
             .promo .barcode { bottom: 40px; left: 30px; }
             .promo .barcode-numbers { bottom: 20px; left: 55px; }
             .promo .product-name { top: 30px; left: 260px; height: 75px; font-size: 32px; width: 460px; }
+            
             .standard .meta-code { top: 240px; left: 30px; }
             .standard .barcode { bottom: 40px; left: 30px; }
             .standard .barcode-numbers { bottom: 20px; left: 55px; }
@@ -358,6 +423,7 @@ with tab2:
             .standard .std-currency { font-size: 60px; margin-left: 5px; line-height: 1.2; }
             .standard .std-unit-price { position: absolute; top: 240px; right: 30px; font-size: 24px; font-weight: bold; color: #333; }
             .standard .product-name { top: 35px; left: 30px; height: 100px; font-size: 38px; width: 450px; } 
+            
             @media print {
                 @page { size: A4; margin: 0; }
                 body { background-color: #fff; margin: 0; padding: 0; }
@@ -434,7 +500,7 @@ with tab2:
             <button class="btn-print" onclick="downloadHTML()">🖨️ Pobierz do Druku (HTML)</button>
             <div class="divider"></div>
             <input type="text" id="searchInput" class="search-box" placeholder="🔍 Szukaj..." oninput="filterTags()">
-            <div class="hint">Wskazówka: Z wciśniętym <b>CTRL</b> zaznaczasz kilka cenówek. <b>ALT + [ ]</b> pomniejsza/powiększa tekst, <b>ALT + STRZAŁKI</b> przesuwa tekst.</div>
+            <div class="hint">⚠️ <b>Zanim wydrukujesz:</b> Upewnij się, że w oknie drukarki <b>Skala = 100%</b>, a opcja <b>Dopasuj do strony jest WYŁĄCZONA!</b> | Z wciśniętym <b>CTRL</b> zaznaczasz kilka cenówek. <b>ALT + [ ]</b> pomniejsza tekst.</div>
         </div>
         <div id="pages-container"></div>
         <script>
@@ -464,7 +530,7 @@ with tab2:
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = "Awaryjne_Cenowki_Dealz.html";
+                a.download = "Cenowki_Do_Druku.html";
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
