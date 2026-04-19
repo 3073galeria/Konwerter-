@@ -7,67 +7,13 @@ import os
 # Konfiguracja strony
 st.set_page_config(page_title="Menadżer Cenówek", page_icon="🏷️", layout="wide")
 
-# --- NOWOCZESNY WYGLĄD (CSS) ---
+# --- SUROWY, CZYTELNY WYGLĄD ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    
-    .stApp { background-color: #f8f9fa; }
-    
-    div[data-testid="stDataEditor"] { 
-        border: 1px solid #e0e0e0; 
-        border-radius: 12px; 
-        background-color: #ffffff;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
-    }
-    
-    div.stButton > button:first-child {
-        background-color: #00bcd4; 
-        color: white; 
-        border-radius: 8px; 
-        font-weight: bold; 
-        border: none; 
-        transition: all 0.3s ease;
-    }
-    div.stButton > button:first-child:hover { 
-        background-color: #0097a7; 
-        box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3); 
-        color: white;
-    }
-    
-    div.stDownloadButton > button:first-child {
-        background-color: #4CAF50; 
-        color: white; 
-        border-radius: 8px; 
-        font-weight: bold; 
-        width: 100%; 
-        border: none; 
-        transition: all 0.3s ease;
-    }
-    div.stDownloadButton > button:first-child:hover { 
-        background-color: #43a047; 
-        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3); 
-        color: white;
-    }
-    
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: transparent;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #ffffff; 
-        border-radius: 8px 8px 0 0; 
-        padding: 10px 20px; 
-        border: 1px solid #e0e0e0;
-        border-bottom: none;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #00bcd4 !important; 
-        color: white !important;
-        border-color: #00bcd4 !important;
-    }
+    div[data-testid="stDataEditor"] { border: 1px solid #c0c0c0; border-radius: 4px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -210,19 +156,19 @@ with tab1:
         
         st.markdown(f"""
         <div style="display: flex; gap: 15px; margin-bottom: 25px;">
-            <div style="flex: 1; background-color: #d4edda; border-radius: 8px; padding: 15px; text-align: center; color: #155724; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="font-size: 14px; text-transform: uppercase; font-weight: bold; margin-bottom: 5px;">🟢 nowa promocja</div>
+            <div style="flex: 1; background-color: #d4edda; border-radius: 4px; padding: 15px; text-align: center; color: #155724; border: 1px solid #c3e6cb;">
+                <div style="font-size: 14px; text-transform: uppercase; font-weight: bold; margin-bottom: 5px;">🟢 Nowa Promocja</div>
                 <div style="font-size: 32px; font-weight: bold;">{nowosci_cnt}</div>
             </div>
-            <div style="flex: 1; background-color: #fff3cd; border-radius: 8px; padding: 15px; text-align: center; color: #856404; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="flex: 1; background-color: #fff3cd; border-radius: 4px; padding: 15px; text-align: center; color: #856404; border: 1px solid #ffeeba;">
                 <div style="font-size: 14px; text-transform: uppercase; font-weight: bold; margin-bottom: 5px;">🟡 Zmiany Cen</div>
                 <div style="font-size: 32px; font-weight: bold;">{zmiany_cnt}</div>
             </div>
-            <div style="flex: 1; background-color: #e2d9f3; border-radius: 8px; padding: 15px; text-align: center; color: #4a148c; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="flex: 1; background-color: #e2d9f3; border-radius: 4px; padding: 15px; text-align: center; color: #4a148c; border: 1px solid #d1c4e9;">
                 <div style="font-size: 14px; text-transform: uppercase; font-weight: bold; margin-bottom: 5px;">🟣 Przedłużone</div>
                 <div style="font-size: 32px; font-weight: bold;">{przedluzone_cnt}</div>
             </div>
-            <div style="flex: 1; background-color: #f8d7da; border-radius: 8px; padding: 15px; text-align: center; color: #721c24; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="flex: 1; background-color: #f8d7da; border-radius: 4px; padding: 15px; text-align: center; color: #721c24; border: 1px solid #f5c6cb;">
                 <div style="font-size: 14px; text-transform: uppercase; font-weight: bold; margin-bottom: 5px;">🔴 Koniec Prom.</div>
                 <div style="font-size: 32px; font-weight: bold;">{koniec_cnt}</div>
             </div>
@@ -316,7 +262,7 @@ with tab1:
 
             st.divider()
             
-            st.info("⚠️ **PAMIĘTAJ PRZED WYDRUKIEM:** Po kliknięciu przycisku poniżej, w oknie swojej drukarki upewnij się, że **Skala to 100% (Rozmiar rzeczywisty)** i wyłączona jest opcja **'Dopasuj do strony'**.")
+            st.info("⚠️ **PAMIĘTAJ PRZED WYDRUKIEM:** Upewnij się, że w oknie drukarki **Skala to 100%** i wyłączona jest opcja **'Dopasuj do strony'**.")
             
             st.download_button(
                 label="💾 POBIERZ LISTĘ DO DRUKU",
@@ -367,30 +313,29 @@ with tab2:
         <title>Generator Cenówek</title>
         <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+39&display=swap" rel="stylesheet">
         <style>
-            body { background-color: #f8f9fa; margin: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; padding-bottom: 50px; }
-            .controls { position: sticky; top: 0; background-color: #2c3e50; width: 100%; padding: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); z-index: 100; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; }
-            .controls button { background-color: #fff; border: none; padding: 10px 15px; font-size: 14px; cursor: pointer; border-radius: 6px; font-weight: bold; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-            .controls button:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+            body { background-color: #e0e0e0; margin: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; padding-bottom: 50px; }
+            .controls { position: sticky; top: 0; background-color: #333; width: 100%; padding: 15px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 100; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; }
+            .controls button { background-color: #fff; border: none; padding: 10px 15px; font-size: 14px; cursor: pointer; border-radius: 5px; font-weight: bold; transition: 0.2s; }
+            .controls button:hover { filter: brightness(0.9); }
             .btn-add { background-color: #f1f1f1; color: #333; }
-            .btn-danger { background-color: #e74c3c !important; color: white; }
-            .btn-warning { background-color: #f39c12 !important; color: white; }
-            .btn-import-csv { background-color: #3498db !important; color: white; }
-            .btn-print { background-color: #2ecc71 !important; color: white; }
-            .btn-bridge { background-color: #9b59b6 !important; color: white; border: 2px solid #fff !important; }
-            .btn-duplicate { background-color: #f1c40f !important; color: #333; }
-            .search-box { padding: 9px 15px; border-radius: 6px; border: none; outline: none; width: 220px; font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+            .btn-danger { background-color: #dc3545 !important; color: white; }
+            .btn-warning { background-color: #ff9800 !important; color: white; }
+            .btn-import-csv { background-color: #17a2b8 !important; color: white; }
+            .btn-print { background-color: #4CAF50 !important; color: white; }
+            .btn-bridge { background-color: #ff4081 !important; color: white; border: 2px solid #fff !important; }
+            .btn-duplicate { background-color: #ffc107 !important; color: #000; }
+            .search-box { padding: 9px 15px; border-radius: 5px; border: none; outline: none; width: 220px; font-size: 14px; }
             .divider { width: 2px; height: 30px; background-color: #555; margin: 0 5px; }
-            .hint { width: 100%; color: #bdc3c7; font-size: 13px; margin-top: 8px; }
+            .hint { width: 100%; color: #aaa; font-size: 12px; margin-top: 5px; }
             
-            .a4-page { background-color: #fff; width: 210mm; height: 297mm; padding: 10mm; margin: 20px auto; box-shadow: 0 10px 30px rgba(0,0,0,0.1); box-sizing: border-box; display: grid; grid-template-columns: repeat(2, 75mm); grid-auto-rows: 37mm; justify-content: center; align-content: start; gap: 2mm 10mm; position: relative; border-radius: 4px; }
+            .a4-page { background-color: #fff; width: 210mm; height: 297mm; padding: 10mm; margin: 20px auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; display: grid; grid-template-columns: repeat(2, 75mm); grid-auto-rows: 37mm; justify-content: center; align-content: start; gap: 2mm 10mm; position: relative; }
             .page-number { position: absolute; bottom: 5mm; right: 10mm; font-size: 12px; color: #999; }
-            .tag-wrapper { width: 75mm; height: 37mm; position: relative; box-sizing: border-box; border: 1px dashed #ccc; background-color: #ffffff; overflow: hidden; cursor: pointer; transition: 0.1s; }
-            .tag-wrapper:hover { border-color: #3498db; }
-            .tag-wrapper.selected { border: 2px solid #00bcd4; background-color: #f0fbff; box-shadow: inset 0 0 10px rgba(0, 188, 212, 0.1); }
+            .tag-wrapper { width: 75mm; height: 37mm; position: relative; box-sizing: border-box; border: 1px dashed #888; background-color: #ffffff; overflow: hidden; cursor: pointer; }
+            .tag-wrapper.selected { border: 2px solid #007bff; background-color: #f8fbff; }
             .price-tag { width: 750px; height: 370px; position: absolute; top: 0; left: 0; color: #333; transform: scale(0.37795); transform-origin: top left; pointer-events: none; }
             .price-tag > * { pointer-events: auto; } 
-            [contenteditable="true"]:hover { background-color: rgba(0, 0, 0, 0.05); outline: 2px dashed #999; cursor: text; border-radius: 4px; }
-            [contenteditable="true"]:focus { background-color: rgba(0, 188, 212, 0.1); outline: 2px solid #00bcd4; cursor: text; border-radius: 4px; }
+            [contenteditable="true"]:hover { background-color: rgba(0, 0, 0, 0.05); outline: 2px dashed #999; cursor: text; }
+            [contenteditable="true"]:focus { background-color: rgba(0, 123, 255, 0.1); outline: 2px solid #007bff; cursor: text; }
             
             .meta-code { position: absolute; font-size: 16px; letter-spacing: 1px; }
             .barcode { position: absolute; font-family: 'Libre Barcode 39', cursive; font-size: 60px; line-height: 0.8; font-weight: normal; pointer-events: none; }
