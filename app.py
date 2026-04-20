@@ -407,8 +407,8 @@ with tab2:
                     margin: 0 auto; 
                     padding: 0; 
                     box-shadow: none; 
-                    width: 210mm; 
-                    height: 297mm; 
+                    width: 150mm; 
+                    height: 259mm; 
                     page-break-after: always; 
                 }
                 .a4-page:last-child { page-break-after: auto; }
