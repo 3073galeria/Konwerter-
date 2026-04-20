@@ -197,7 +197,6 @@ with tab1:
             }
         )
         
-        # ZAPISUJEMY STAN CHECKBOXÓW DO PAMIĘCI SESJI - KRYTYCZNA POPRAWKA
         st.session_state['edytowany_df'] = edytowany_df
         
         do_druku_df = edytowany_df[edytowany_df["🖨️ Do druku"] == True]
@@ -213,7 +212,7 @@ with tab1:
                     @page {{ size: A4 portrait; margin: 8mm; }}
                     * {{ box-sizing: border-box; }}
                     body {{ font-family: sans-serif; margin: 0; padding: 0; font-size: 8pt; background-color: white; }}
-                    .container {{ width: 194mm; margin: 0 auto; }}
+                    .container {{ width: 100%; max-width: 190mm; margin: 0 auto; }}
                     .departament-header {{ color: #444; font-size: 10pt; font-weight: bold; margin-top: 10px; border-bottom: 1.5px solid #ccc; text-transform: uppercase; padding-bottom: 2px; page-break-after: avoid; }}
                     .product-row {{ display: flex; align-items: center; border-bottom: 1px solid #eee; padding: 4px 0; page-break-inside: avoid; width: 100%; }}
                     .col-sku {{ width: 25%; padding-right: 5px; }}
@@ -266,9 +265,6 @@ with tab1:
             </html>"""
 
             st.divider()
-            
-            st.info("⚠️ **PAMIĘTAJ PRZED WYDRUKIEM:** Upewnij się, że w oknie drukarki **Skala to 100%** i wyłączona jest opcja **'Dopasuj do strony'**.")
-            
             st.download_button(
                 label="💾 POBIERZ LISTĘ DO DRUKU",
                 data=html_content.encode('utf-8'),
@@ -279,7 +275,6 @@ with tab1:
 
 with tab2:
     bridge_data = []
-    # POPRAWKA MAGICZNEGO MOSTU: Odczytujemy dane z twardej pamięci sesji
     if 'edytowany_df' in st.session_state and not st.session_state['edytowany_df'].empty:
         tabela_z_zakladki_1 = st.session_state['edytowany_df']
         tylko_zaklikane = tabela_z_zakladki_1[tabela_z_zakladki_1["🖨️ Do druku"] == True]
@@ -336,9 +331,25 @@ with tab2:
             .divider { width: 2px; height: 30px; background-color: #555; margin: 0 5px; }
             .hint { width: 100%; color: #aaa; font-size: 12px; margin-top: 5px; }
             
-            .a4-page { background-color: #fff; width: 210mm; height: 297mm; padding: 10mm; margin: 20px auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; display: grid; grid-template-columns: repeat(2, 75mm); grid-auto-rows: 37mm; justify-content: center; align-content: start; gap: 2mm 10mm; position: relative; }
+            /* ZMIENIONY UKŁAD STRONY A4 */
+            .a4-page { 
+                background-color: #fff; 
+                width: 210mm; 
+                min-height: 297mm; 
+                padding: 15mm 0; /* Górny i dolny margines, boki wolne */
+                margin: 20px auto; 
+                box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+                box-sizing: border-box; 
+                display: flex; 
+                flex-wrap: wrap; 
+                justify-content: center; /* Centruje cenówki! */
+                align-content: flex-start; 
+                gap: 2mm 10mm; 
+                position: relative; 
+            }
             .page-number { position: absolute; bottom: 5mm; right: 10mm; font-size: 12px; color: #999; }
-            .tag-wrapper { width: 75mm; height: 37mm; position: relative; box-sizing: border-box; border: 1px dashed #888; background-color: #ffffff; overflow: hidden; cursor: pointer; }
+            
+            .tag-wrapper { width: 75mm; height: 37mm; flex: 0 0 75mm; position: relative; box-sizing: border-box; border: 1px dashed #888; background-color: #ffffff; overflow: hidden; cursor: pointer; }
             .tag-wrapper.selected { border: 2px solid #007bff; background-color: #f8fbff; }
             .price-tag { width: 750px; height: 370px; position: absolute; top: 0; left: 0; color: #333; transform: scale(0.37795); transform-origin: top left; pointer-events: none; }
             .price-tag > * { pointer-events: auto; } 
@@ -377,13 +388,29 @@ with tab2:
             .standard .std-unit-price { position: absolute; top: 240px; right: 30px; font-size: 24px; font-weight: bold; color: #333; }
             .standard .product-name { top: 35px; left: 30px; height: 100px; font-size: 38px; width: 450px; } 
             
+            /* ZMIENIONE USTAWIENIA DRUKU - ODBLOKOWANIE SKALI */
             @media print {
-                @page { size: A4; margin: 0; }
+                @page { size: A4 portrait; margin: 5mm; } 
                 body { background-color: #fff; margin: 0; padding: 0; }
                 .controls, #templates, .no-print, .page-number { display: none !important; }
-                .a4-page { margin: 0; padding: 10mm; box-shadow: none; width: 100%; height: 100%; page-break-after: always; box-sizing: border-box; }
+                
+                .a4-page { 
+                    margin: 0 auto; 
+                    padding: 5mm 0; 
+                    box-shadow: none; 
+                    width: auto; /* Nie narzuca twardych ramek przeglądarce */
+                    height: auto; 
+                    display: flex; 
+                    flex-wrap: wrap; 
+                    justify-content: center; /* Pozwala na naturalne ułożenie na środku */
+                    align-content: flex-start; 
+                    gap: 2mm 10mm; 
+                    page-break-after: always; 
+                    box-sizing: border-box; 
+                }
                 .a4-page:last-child { page-break-after: auto; }
-                .tag-wrapper { width: 75mm !important; height: 37mm !important; min-width: 75mm !important; max-width: 75mm !important; border: 1px dashed #ccc !important; } 
+                
+                .tag-wrapper { width: 75mm !important; height: 37mm !important; flex: 0 0 75mm !important; border: 1px dashed #ccc !important; page-break-inside: avoid; } 
                 .tag-wrapper.selected { background-color: #fff; border: 1px dashed #ccc !important; }
                 [contenteditable="true"]:hover, [contenteditable="true"]:focus { outline: none; background-color: transparent; }
             }
@@ -453,7 +480,7 @@ with tab2:
             <button class="btn-print" onclick="downloadHTML()">🖨️ Pobierz do Druku (HTML)</button>
             <div class="divider"></div>
             <input type="text" id="searchInput" class="search-box" placeholder="🔍 Szukaj..." oninput="filterTags()">
-            <div class="hint">⚠️ <b>Zanim wydrukujesz:</b> Upewnij się, że w oknie drukarki <b>Skala = 100%</b>, a opcja <b>Dopasuj do strony jest WYŁĄCZONA!</b> | Z wciśniętym <b>CTRL</b> zaznaczasz kilka cenówek.</div>
+            <div class="hint">⚠️ <b>Zanim wydrukujesz:</b> Upewnij się, że w oknie drukarki <b>Skala = 100%</b>. | Z wciśniętym <b>CTRL</b> zaznaczasz kilka cenówek. <b>ALT + [ ]</b> pomniejsza tekst.</div>
         </div>
         <div id="pages-container"></div>
         <script>
@@ -483,12 +510,12 @@ with tab2:
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = "Cenowki_Dealz.html";
+                a.download = "Awaryjne_Cenowki_Dealz.html";
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-                alert("Zapisano! Kliknij w pobrany plik na dole ekranu, a okno drukowania otworzy się automatycznie w perfekcyjnym A4.");
+                alert("Zapisano! Kliknij w pobrany plik na dole ekranu, a okno drukowania otworzy się automatycznie.");
             }
 
             function saveState() {
