@@ -331,26 +331,36 @@ with tab2:
             .divider { width: 2px; height: 30px; background-color: #555; margin: 0 5px; }
             .hint { width: 100%; color: #aaa; font-size: 12px; margin-top: 5px; }
             
-            /* ZMIENIONY UKŁAD STRONY A4 */
+            /* NOWY UKŁAD A4 - 14 SZTUK (2x7) BEZ PRZERW */
             .a4-page { 
                 background-color: #fff; 
                 width: 210mm; 
-                min-height: 297mm; 
-                padding: 15mm 0; /* Górny i dolny margines, boki wolne */
+                height: 297mm; 
                 margin: 20px auto; 
                 box-shadow: 0 0 10px rgba(0,0,0,0.1); 
                 box-sizing: border-box; 
-                display: flex; 
-                flex-wrap: wrap; 
-                justify-content: center; /* Centruje cenówki! */
-                align-content: flex-start; 
-                gap: 2mm 10mm; 
+                display: grid; 
+                grid-template-columns: 75mm 75mm; 
+                grid-template-rows: repeat(7, 37mm); 
+                justify-content: center; 
+                align-content: center;   
+                gap: 0; 
                 position: relative; 
             }
             .page-number { position: absolute; bottom: 5mm; right: 10mm; font-size: 12px; color: #999; }
             
-            .tag-wrapper { width: 75mm; height: 37mm; flex: 0 0 75mm; position: relative; box-sizing: border-box; border: 1px dashed #888; background-color: #ffffff; overflow: hidden; cursor: pointer; }
-            .tag-wrapper.selected { border: 2px solid #007bff; background-color: #f8fbff; }
+            .tag-wrapper { 
+                width: 75mm; 
+                height: 37mm; 
+                position: relative; 
+                box-sizing: border-box; 
+                border: 1px dashed #ccc; 
+                background-color: #ffffff; 
+                overflow: hidden; 
+                cursor: pointer; 
+            }
+            .tag-wrapper.selected { outline: 2px solid #007bff; z-index: 10; }
+            
             .price-tag { width: 750px; height: 370px; position: absolute; top: 0; left: 0; color: #333; transform: scale(0.37795); transform-origin: top left; pointer-events: none; }
             .price-tag > * { pointer-events: auto; } 
             [contenteditable="true"]:hover { background-color: rgba(0, 0, 0, 0.05); outline: 2px dashed #999; cursor: text; }
@@ -388,30 +398,22 @@ with tab2:
             .standard .std-unit-price { position: absolute; top: 240px; right: 30px; font-size: 24px; font-weight: bold; color: #333; }
             .standard .product-name { top: 35px; left: 30px; height: 100px; font-size: 38px; width: 450px; } 
             
-            /* ZMIENIONE USTAWIENIA DRUKU - ODBLOKOWANIE SKALI */
+            /* TWARDA BLOKADA KOREKTY MARGINESÓW PRZEZ PRZEGLĄDARKĘ */
             @media print {
-                @page { size: A4 portrait; margin: 5mm; } 
+                @page { size: A4 portrait; margin: 0; } 
                 body { background-color: #fff; margin: 0; padding: 0; }
                 .controls, #templates, .no-print, .page-number { display: none !important; }
-                
                 .a4-page { 
                     margin: 0 auto; 
-                    padding: 5mm 0; 
+                    padding: 0; 
                     box-shadow: none; 
-                    width: auto; /* Nie narzuca twardych ramek przeglądarce */
-                    height: auto; 
-                    display: flex; 
-                    flex-wrap: wrap; 
-                    justify-content: center; /* Pozwala na naturalne ułożenie na środku */
-                    align-content: flex-start; 
-                    gap: 2mm 10mm; 
+                    width: 210mm; 
+                    height: 297mm; 
                     page-break-after: always; 
-                    box-sizing: border-box; 
                 }
                 .a4-page:last-child { page-break-after: auto; }
-                
-                .tag-wrapper { width: 75mm !important; height: 37mm !important; flex: 0 0 75mm !important; border: 1px dashed #ccc !important; page-break-inside: avoid; } 
-                .tag-wrapper.selected { background-color: #fff; border: 1px dashed #ccc !important; }
+                .tag-wrapper { border: 1px dashed #ccc !important; page-break-inside: avoid; } 
+                .tag-wrapper.selected { outline: none; }
                 [contenteditable="true"]:hover, [contenteditable="true"]:focus { outline: none; background-color: transparent; }
             }
         </style>
@@ -489,7 +491,7 @@ with tab2:
     html_bridge = f"window.BRIDGE_DATA = {json.dumps(bridge_data)};"
     
     html_tail = """
-            const MathVars = { TAGS_PER_PAGE: 12 };
+            const MathVars = { TAGS_PER_PAGE: 14 };
 
             function importFromBridge() {
                 if (!window.BRIDGE_DATA || window.BRIDGE_DATA.length === 0) {
