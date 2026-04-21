@@ -341,7 +341,7 @@ with tab2:
                 box-sizing: border-box; 
                 display: grid; 
                 grid-template-columns: 75mm 75mm 75mm; 
-                grid-template-rows: repeat(4, 37mm); 
+                grid-template-rows: repeat(3, 46,25mm); 
                 justify-content: center; 
                 align-content: center;   
                 gap: 0; 
@@ -509,7 +509,7 @@ with tab2:
     html_bridge = f"window.BRIDGE_DATA = {json.dumps(bridge_data)};"
     
     html_tail = """
-            const MathVars = { TAGS_PER_PAGE: 12 };
+            const MathVars = { TAGS_PER_PAGE: 9 };
 
             function importFromBridge() {
                 if (!window.BRIDGE_DATA || window.BRIDGE_DATA.length === 0) {
