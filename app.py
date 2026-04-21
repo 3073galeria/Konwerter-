@@ -410,7 +410,8 @@ with tab2:
                     width: 150mm; 
                     height: auto; /* <--- TO JEST KLUCZ DO ZWYCIĘSTWA */
                     page-break-after: always; 
-                    display: block; 
+                    display: grid; 
+                    grid-template-columns: 75mm 75mm;
                 }
                 .a4-page:last-child { page-break-after: auto; }
                 .tag-wrapper { border: 1px dashed #ccc !important; page-break-inside: avoid; } 
