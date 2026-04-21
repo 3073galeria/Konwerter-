@@ -361,7 +361,7 @@ with tab2:
             }
             .tag-wrapper.selected { outline: 2px solid #007bff; z-index: 10; }
             
-            .price-tag { width: 750px; height: 370px; position: absolute; top: 0; left: 0; color: #333; transform: scale(0.37795); transform-origin: top left; pointer-events: none; }
+            .price-tag { width: 750px; height: 370px; position: absolute; top: 0; left: 0; color: #333; transform: scale(0.47244); transform-origin: top left; pointer-events: none; }
             .price-tag > * { pointer-events: auto; } 
             [contenteditable="true"]:hover { background-color: rgba(0, 0, 0, 0.05); outline: 2px dashed #999; cursor: text; }
             [contenteditable="true"]:focus { background-color: rgba(0, 123, 255, 0.1); outline: 2px solid #007bff; cursor: text; }
