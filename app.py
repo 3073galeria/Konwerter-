@@ -405,10 +405,10 @@ with tab2:
                 .controls, #templates, .no-print, .page-number { display: none !important; }
                 .a4-page { 
                     margin: 0 auto; 
-                    padding: 0; 
+                    padding: 25mm 0 0 0; /* 25mm luzu od samej góry */
                     box-shadow: none; 
                     width: 150mm; 
-                    height: 259mm; 
+                    height: 284mm; /* Zwiększone, żeby pomieścić cenówki i nowy margines */
                     page-break-after: always; 
                 }
                 .a4-page:last-child { page-break-after: auto; }
