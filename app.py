@@ -331,17 +331,17 @@ with tab2:
             .divider { width: 2px; height: 30px; background-color: #555; margin: 0 5px; }
             .hint { width: 100%; color: #aaa; font-size: 12px; margin-top: 5px; }
             
-            /* NOWY UKŁAD A4 - 14 SZTUK (2x7) BEZ PRZERW */
+            /* BEZSTRESOWY UKŁAD POZIOMY A4 - 12 SZTUK (3x4) BEZ PRZERW */
             .a4-page { 
                 background-color: #fff; 
-                width: 210mm; 
-                height: 297mm; 
+                width: 297mm; 
+                height: 210mm; 
                 margin: 20px auto; 
                 box-shadow: 0 0 10px rgba(0,0,0,0.1); 
                 box-sizing: border-box; 
                 display: grid; 
-                grid-template-columns: 75mm 75mm; 
-                grid-template-rows: repeat(7, 37mm); 
+                grid-template-columns: 75mm 75mm 75mm; 
+                grid-template-rows: repeat(4, 37mm); 
                 justify-content: center; 
                 align-content: center;   
                 gap: 0; 
@@ -361,7 +361,7 @@ with tab2:
             }
             .tag-wrapper.selected { outline: 2px solid #007bff; z-index: 10; }
             
-            .price-tag { width: 750px; height: 370px; position: absolute; top: 0; left: 0; color: #333; transform: scale(0.47244); transform-origin: top left; pointer-events: none; }
+            .price-tag { width: 750px; height: 370px; position: absolute; top: 0; left: 0; color: #333; transform: scale(0.37795); transform-origin: top left; pointer-events: none; }
             .price-tag > * { pointer-events: auto; } 
             [contenteditable="true"]:hover { background-color: rgba(0, 0, 0, 0.05); outline: 2px dashed #999; cursor: text; }
             [contenteditable="true"]:focus { background-color: rgba(0, 123, 255, 0.1); outline: 2px solid #007bff; cursor: text; }
@@ -398,24 +398,40 @@ with tab2:
             .standard .std-unit-price { position: absolute; top: 240px; right: 30px; font-size: 24px; font-weight: bold; color: #333; }
             .standard .product-name { top: 35px; left: 30px; height: 100px; font-size: 38px; width: 450px; } 
             
-            /* TWARDA BLOKADA KOREKTY MARGINESÓW PRZEZ PRZEGLĄDARKĘ */
+            /* BEZSTRESOWY UKŁAD POZIOMY (LANDSCAPE) - 12 CENÓWEK */
             @media print {
-                @page { size: A4 portrait; margin: 0; } 
-                body { background-color: #fff; margin: 0; padding: 0; }
+                @page { size: A4 landscape; margin: 0 !important; } 
+                body { background-color: #fff; margin: 0 !important; padding: 0 !important; }
                 .controls, #templates, .no-print, .page-number { display: none !important; }
+                
                 .a4-page { 
-                    margin: 0 auto; 
-                    padding: 25mm 0 0 0; 
-                    box-shadow: none; 
-                    width: 150mm; 
-                    height: auto; /* <--- TO JEST KLUCZ DO ZWYCIĘSTWA */
-                    page-break-after: always; 
-                    display: grid; 
-                    grid-template-columns: 75mm 75mm;
+                    width: 297mm !important; 
+                    height: 210mm !important; 
+                    margin: 0 !important; 
+                    /* Ponad 3 centymetry luzu z każdej strony! */
+                    padding: 31mm 36mm !important; 
+                    box-sizing: border-box !important; 
+                    display: grid !important; 
+                    grid-template-columns: 75mm 75mm 75mm !important; /* 3 kolumny */
+                    grid-auto-rows: 37mm !important; /* 4 rzędy */
+                    gap: 0 !important;
+                    page-break-after: always !important; 
+                    box-shadow: none !important;
+                    overflow: hidden !important;
+                    zoom: 1 !important;
                 }
-                .a4-page:last-child { page-break-after: auto; }
-                .tag-wrapper { border: 1px dashed #ccc !important; page-break-inside: avoid; } 
-                .tag-wrapper.selected { outline: none; }
+                .a4-page:last-child { page-break-after: auto !important; }
+                
+                .tag-wrapper { 
+                    width: 75mm !important; 
+                    height: 37mm !important; 
+                    margin: 0 !important;
+                    border: 1px dashed #ccc !important; 
+                    box-sizing: border-box !important; 
+                    page-break-inside: avoid !important; 
+                    float: none !important;
+                } 
+                .tag-wrapper.selected { outline: none !important; }
                 [contenteditable="true"]:hover, [contenteditable="true"]:focus { outline: none; background-color: transparent; }
             }
         </style>
@@ -493,7 +509,7 @@ with tab2:
     html_bridge = f"window.BRIDGE_DATA = {json.dumps(bridge_data)};"
     
     html_tail = """
-            const MathVars = { TAGS_PER_PAGE: 14 };
+            const MathVars = { TAGS_PER_PAGE: 12 };
 
             function importFromBridge() {
                 if (!window.BRIDGE_DATA || window.BRIDGE_DATA.length === 0) {
