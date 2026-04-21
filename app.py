@@ -405,11 +405,12 @@ with tab2:
                 .controls, #templates, .no-print, .page-number { display: none !important; }
                 .a4-page { 
                     margin: 0 auto; 
-                    padding: 25mm 0 0 0; /* 25mm luzu od samej góry */
+                    padding: 25mm 0 0 0; 
                     box-shadow: none; 
                     width: 150mm; 
-                    height: 284mm; /* Zwiększone, żeby pomieścić cenówki i nowy margines */
+                    height: auto; /* <--- TO JEST KLUCZ DO ZWYCIĘSTWA */
                     page-break-after: always; 
+                    display: block; 
                 }
                 .a4-page:last-child { page-break-after: auto; }
                 .tag-wrapper { border: 1px dashed #ccc !important; page-break-inside: avoid; } 
