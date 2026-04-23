@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import re
 import json
-import os
+import pdfkit
 
 # Konfiguracja strony
 st.set_page_config(page_title="Menadżer Cenówek", page_icon="🏷️", layout="wide")
@@ -19,18 +19,9 @@ st.markdown("""
 
 st.title("🏷️ Menadżer Cenówek")
 
-BACKUP_FILE = 'kopia_zapasowa.json'
-
-# --- PRZYWRACANIE SESJI Z PLIKU ---
+# --- ZARZĄDZANIE SESJĄ (TYLKO W PAMIĘCI PRZEGLĄDARKI) ---
 if 'df_wyniki' not in st.session_state:
-    if os.path.exists(BACKUP_FILE):
-        try:
-            with open(BACKUP_FILE, 'r', encoding='utf-8') as f:
-                dane = json.load(f)
-            if dane:
-                st.session_state['df_wyniki'] = pd.DataFrame(dane).sort_values(by="Departament")
-        except Exception:
-            pass
+    st.session_state['df_wyniki'] = pd.DataFrame()
 
 # --- SILNIK PARSUJĄCY ---
 def parse_text(raw_text):
@@ -130,9 +121,6 @@ with tab1:
                     wyniki.append({"🖨️ Do druku": True, "Status": "KONIEC PROMOCJI", "Departament": stara_dane['Departament'], "SKU": sku, "Nazwa": stara_dane['Nazwa'], "Stara Cena": stara_dane['Stara_Cena'], "Nowa Cena": "-", "Ilość/Mechanizm": "-", "EAN": stara_dane['EAN']})
             
             st.session_state['df_wyniki'] = pd.DataFrame(wyniki).sort_values(by="Departament")
-            with open(BACKUP_FILE, 'w', encoding='utf-8') as f:
-                json.dump(wyniki, f, ensure_ascii=False, indent=4)
-                
             st.rerun()
 
     if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
@@ -144,8 +132,6 @@ with tab1:
             st.subheader("🎯 Panel roboczy")
         with col_dash2:
             if st.button("🗑️ Zakończ pracę", use_container_width=True, key="clear_btn"):
-                if os.path.exists(BACKUP_FILE):
-                    os.remove(BACKUP_FILE)
                 if 'edytowany_df' in st.session_state:
                     del st.session_state['edytowany_df']
                 del st.session_state['df_wyniki']
@@ -265,13 +251,40 @@ with tab1:
             </html>"""
 
             st.divider()
-            st.download_button(
-                label="💾 POBIERZ LISTĘ DO DRUKU",
-                data=html_content.encode('utf-8'),
-                file_name="zmiana_cen.html",
-                mime="text/html",
-                use_container_width=True
-            )
+            col_dl1, col_dl2 = st.columns(2)
+            with col_dl1:
+                st.download_button(
+                    label="📄 POBIERZ LISTĘ (HTML)",
+                    data=html_content.encode('utf-8'),
+                    file_name="zmiana_cen.html",
+                    mime="text/html",
+                    use_container_width=True
+                )
+            with col_dl2:
+                # KONFIGURACJA PDFKIT DLA STREAMLIT CLOUD
+                options = {
+                    'page-size': 'A4',
+                    'margin-top': '8mm',
+                    'margin-right': '8mm',
+                    'margin-bottom': '8mm',
+                    'margin-left': '8mm',
+                    'encoding': "UTF-8",
+                    'enable-javascript': '',
+                    'javascript-delay': '1000',
+                    'no-stop-slow-scripts': '',
+                    'quiet': ''
+                }
+                try:
+                    pdf_bytes = pdfkit.from_string(html_content, False, options=options)
+                    st.download_button(
+                        label="📕 POBIERZ LISTĘ (PDF)",
+                        data=pdf_bytes,
+                        file_name="zmiana_cen.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                except Exception as e:
+                    st.error("Błąd generowania PDF. Upewnij się, że masz plik packages.txt z wpisem wkhtmltopdf.")
 
 with tab2:
     bridge_data = []
@@ -331,7 +344,6 @@ with tab2:
             .divider { width: 2px; height: 30px; background-color: #555; margin: 0 5px; }
             .hint { width: 100%; color: #aaa; font-size: 12px; margin-top: 5px; }
             
-            /* BEZSTRESOWY UKŁAD POZIOMY A4 - 12 SZTUK (3x4) BEZ PRZERW */
             .a4-page { 
                 background-color: #fff; 
                 width: 297mm; 
@@ -341,7 +353,7 @@ with tab2:
                 box-sizing: border-box; 
                 display: grid; 
                 grid-template-columns: 75mm 75mm 75mm; 
-                grid-template-rows: repeat(3, 46,25mm); 
+                grid-template-rows: repeat(3, 46.25mm); 
                 justify-content: center; 
                 align-content: center;   
                 gap: 0; 
@@ -398,7 +410,6 @@ with tab2:
             .standard .std-unit-price { position: absolute; top: 240px; right: 30px; font-size: 24px; font-weight: bold; color: #333; }
             .standard .product-name { top: 35px; left: 30px; height: 100px; font-size: 38px; width: 450px; } 
             
-            /* BEZSTRESOWY UKŁAD POZIOMY (LANDSCAPE) - 12 CENÓWEK */
             @media print {
                 @page { size: A4 landscape; margin: 0 !important; } 
                 body { background-color: #fff; margin: 0 !important; padding: 0 !important; }
@@ -408,12 +419,11 @@ with tab2:
                     width: 297mm !important; 
                     height: 210mm !important; 
                     margin: 0 !important; 
-                    /* Ponad 3 centymetry luzu z każdej strony! */
                     padding: 31mm 36mm !important; 
                     box-sizing: border-box !important; 
                     display: grid !important; 
-                    grid-template-columns: 75mm 75mm 75mm !important; /* 3 kolumny */
-                    grid-auto-rows: 37mm !important; /* 4 rzędy */
+                    grid-template-columns: 75mm 75mm 75mm !important; 
+                    grid-auto-rows: 37mm !important; 
                     gap: 0 !important;
                     page-break-after: always !important; 
                     box-shadow: none !important;
