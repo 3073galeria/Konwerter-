@@ -1,4 +1,4 @@
 streamlit
-pdfplumber
-pdfkit
 pandas
+pdfkit
+pdfplumber
