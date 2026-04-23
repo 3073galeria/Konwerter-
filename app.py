@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import re
 import json
-import os
 
 # Konfiguracja strony
 st.set_page_config(page_title="Menadżer Cenówek", page_icon="🏷️", layout="wide")
@@ -19,18 +18,9 @@ st.markdown("""
 
 st.title("🏷️ Menadżer Cenówek")
 
-BACKUP_FILE = 'kopia_zapasowa.json'
-
-# --- PRZYWRACANIE SESJI Z PLIKU ---
+# --- PRZYWRACANIE SESJI (TYLKO Z PAMIĘCI) ---
 if 'df_wyniki' not in st.session_state:
-    if os.path.exists(BACKUP_FILE):
-        try:
-            with open(BACKUP_FILE, 'r', encoding='utf-8') as f:
-                dane = json.load(f)
-            if dane:
-                st.session_state['df_wyniki'] = pd.DataFrame(dane).sort_values(by="Departament")
-        except Exception:
-            pass
+    st.session_state['df_wyniki'] = pd.DataFrame()
 
 # --- SILNIK PARSUJĄCY ---
 def parse_text(raw_text):
@@ -130,9 +120,6 @@ with tab1:
                     wyniki.append({"🖨️ Do druku": True, "Status": "KONIEC PROMOCJI", "Departament": stara_dane['Departament'], "SKU": sku, "Nazwa": stara_dane['Nazwa'], "Stara Cena": stara_dane['Stara_Cena'], "Nowa Cena": "-", "Ilość/Mechanizm": "-", "EAN": stara_dane['EAN']})
             
             st.session_state['df_wyniki'] = pd.DataFrame(wyniki).sort_values(by="Departament")
-            with open(BACKUP_FILE, 'w', encoding='utf-8') as f:
-                json.dump(wyniki, f, ensure_ascii=False, indent=4)
-                
             st.rerun()
 
     if 'df_wyniki' in st.session_state and not st.session_state['df_wyniki'].empty:
@@ -144,11 +131,10 @@ with tab1:
             st.subheader("🎯 Panel roboczy")
         with col_dash2:
             if st.button("🗑️ Zakończ pracę", use_container_width=True, key="clear_btn"):
-                if os.path.exists(BACKUP_FILE):
-                    os.remove(BACKUP_FILE)
                 if 'edytowany_df' in st.session_state:
                     del st.session_state['edytowany_df']
-                del st.session_state['df_wyniki']
+                if 'df_wyniki' in st.session_state:
+                    del st.session_state['df_wyniki']
                 st.rerun()
         
         nowosci_cnt = len(df[df['Status'] == 'NOWA PROMOCJA'])
@@ -341,7 +327,7 @@ with tab2:
                 box-sizing: border-box; 
                 display: grid; 
                 grid-template-columns: 75mm 75mm 75mm; 
-                grid-template-rows: repeat(3, 46,25mm); 
+                grid-template-rows: repeat(3, 46.25mm); 
                 justify-content: center; 
                 align-content: center;   
                 gap: 0; 
