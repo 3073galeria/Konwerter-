@@ -747,7 +747,6 @@ with tab2:
                 });
             }
         </script>
-    """
     </body>
     </html>
     """
