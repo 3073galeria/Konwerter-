@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import re
 import json
+import pdfkit
 
 # Konfiguracja strony
 st.set_page_config(page_title="Menadżer Cenówek", page_icon="🏷️", layout="wide")
@@ -18,7 +19,7 @@ st.markdown("""
 
 st.title("🏷️ Menadżer Cenówek")
 
-# --- PRZYWRACANIE SESJI (TYLKO Z PAMIĘCI) ---
+# --- ZARZĄDZANIE SESJĄ (TYLKO W PAMIĘCI PRZEGLĄDARKI) ---
 if 'df_wyniki' not in st.session_state:
     st.session_state['df_wyniki'] = pd.DataFrame()
 
@@ -133,8 +134,7 @@ with tab1:
             if st.button("🗑️ Zakończ pracę", use_container_width=True, key="clear_btn"):
                 if 'edytowany_df' in st.session_state:
                     del st.session_state['edytowany_df']
-                if 'df_wyniki' in st.session_state:
-                    del st.session_state['df_wyniki']
+                del st.session_state['df_wyniki']
                 st.rerun()
         
         nowosci_cnt = len(df[df['Status'] == 'NOWA PROMOCJA'])
@@ -251,13 +251,40 @@ with tab1:
             </html>"""
 
             st.divider()
-            st.download_button(
-                label="💾 POBIERZ LISTĘ DO DRUKU",
-                data=html_content.encode('utf-8'),
-                file_name="zmiana_cen.html",
-                mime="text/html",
-                use_container_width=True
-            )
+            col_dl1, col_dl2 = st.columns(2)
+            with col_dl1:
+                st.download_button(
+                    label="📄 POBIERZ LISTĘ (HTML)",
+                    data=html_content.encode('utf-8'),
+                    file_name="zmiana_cen.html",
+                    mime="text/html",
+                    use_container_width=True
+                )
+            with col_dl2:
+                # KONFIGURACJA PDFKIT DLA STREAMLIT CLOUD
+                options = {
+                    'page-size': 'A4',
+                    'margin-top': '8mm',
+                    'margin-right': '8mm',
+                    'margin-bottom': '8mm',
+                    'margin-left': '8mm',
+                    'encoding': "UTF-8",
+                    'enable-javascript': '',
+                    'javascript-delay': '1000',
+                    'no-stop-slow-scripts': '',
+                    'quiet': ''
+                }
+                try:
+                    pdf_bytes = pdfkit.from_string(html_content, False, options=options)
+                    st.download_button(
+                        label="📕 POBIERZ LISTĘ (PDF)",
+                        data=pdf_bytes,
+                        file_name="zmiana_cen.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                except Exception as e:
+                    st.error("Błąd generowania PDF. Upewnij się, że masz plik packages.txt z wpisem wkhtmltopdf.")
 
 with tab2:
     bridge_data = []
@@ -317,7 +344,6 @@ with tab2:
             .divider { width: 2px; height: 30px; background-color: #555; margin: 0 5px; }
             .hint { width: 100%; color: #aaa; font-size: 12px; margin-top: 5px; }
             
-            /* BEZSTRESOWY UKŁAD POZIOMY A4 - 12 SZTUK (3x4) BEZ PRZERW */
             .a4-page { 
                 background-color: #fff; 
                 width: 297mm; 
@@ -384,7 +410,6 @@ with tab2:
             .standard .std-unit-price { position: absolute; top: 240px; right: 30px; font-size: 24px; font-weight: bold; color: #333; }
             .standard .product-name { top: 35px; left: 30px; height: 100px; font-size: 38px; width: 450px; } 
             
-            /* BEZSTRESOWY UKŁAD POZIOMY (LANDSCAPE) - 12 CENÓWEK */
             @media print {
                 @page { size: A4 landscape; margin: 0 !important; } 
                 body { background-color: #fff; margin: 0 !important; padding: 0 !important; }
@@ -394,12 +419,11 @@ with tab2:
                     width: 297mm !important; 
                     height: 210mm !important; 
                     margin: 0 !important; 
-                    /* Ponad 3 centymetry luzu z każdej strony! */
                     padding: 31mm 36mm !important; 
                     box-sizing: border-box !important; 
                     display: grid !important; 
-                    grid-template-columns: 75mm 75mm 75mm !important; /* 3 kolumny */
-                    grid-auto-rows: 37mm !important; /* 4 rzędy */
+                    grid-template-columns: 75mm 75mm 75mm !important; 
+                    grid-auto-rows: 37mm !important; 
                     gap: 0 !important;
                     page-break-after: always !important; 
                     box-shadow: none !important;
