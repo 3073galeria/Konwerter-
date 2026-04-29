@@ -17,9 +17,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🏷️ Menadżer Cenówek")
-
 # --- PRZYWRACANIE SESJI (TYLKO Z PAMIĘCI) ---
-if 'df_wyniki' not in st.session_state: 
+if'df_wyniki' not in st.session_state:
   st.session_state['df_wyniki'] = pd.DataFrame()
 
 # --- SILNIK PARSUJĄCY ---
