@@ -302,8 +302,10 @@ with tab2:
         <meta charset="UTF-8">
         <title>Generator Cenówek</title>
         <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+39&display=swap" rel="stylesheet">
+        <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
         <style>
-            body { background-color: #e0e0e0; margin: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; padding-bottom: 50px; }
+            body { background-color: #e0e0e0 !important; margin: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; padding-bottom: 50px; }
             .controls { position: sticky; top: 0; background-color: #333; width: 100%; padding: 15px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 100; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; }
             .controls button { background-color: #fff; border: none; padding: 10px 15px; font-size: 14px; cursor: pointer; border-radius: 5px; font-weight: bold; transition: 0.2s; }
             .controls button:hover { filter: brightness(0.9); }
@@ -318,35 +320,46 @@ with tab2:
             .divider { width: 2px; height: 30px; background-color: #555; margin: 0 5px; }
             .hint { width: 100%; color: #aaa; font-size: 12px; margin-top: 5px; }
             
-            /* BEZSTRESOWY UKŁAD POZIOMY A4 - 12 SZTUK (3x4) BEZ PRZERW */
-            .a4-page .a4-page { 
-    background-color: #fff; 
-    width: 297mm; 
-    height: 210mm; 
-    margin: 20px auto; 
-    /* Marginesy centrujące: 12.5mm góra/dół i 36mm lewo/prawo */
-    padding: 12.5mm 36mm; 
-    box-sizing: border-box; 
-    display: grid; 
-    grid-template-columns: 75mm 75mm 75mm; /* 3 kolumny */
-    grid-template-rows: repeat(5, 37mm);   /* 5 rzędów (15 cenówek) */
-    gap: 0; 
-    position: relative; 
-    overflow: hidden;
-}
+            /* PANCERNY UKŁAD POZIOMY A4 - 15 SZTUK (3x5) */
+            .a4-page { 
+                background-color: #ffffff !important; 
+                width: 297mm !important; 
+                height: 210mm !important; 
+                margin: 20px auto !important; 
+                box-shadow: 0 0 15px rgba(0,0,0,0.2) !important; 
+                box-sizing: border-box !important; 
+                
+                /* Wymuszenie siatki */
+                display: grid !important; 
+                grid-template-columns: 75mm 75mm 75mm !important; 
+                grid-auto-rows: 37mm !important; 
+                justify-content: center !important; 
+                align-content: center !important;   
+                gap: 0 !important; 
+                
+                /* Marginesy centrujące na kartce A4 */
+                padding-top: 12.5mm !important; 
+                padding-bottom: 12.5mm !important;
+                padding-left: 36mm !important; 
+                padding-right: 36mm !important; 
+                
+                position: relative !important; 
+                overflow: hidden !important;
+                page-break-after: always !important;
+            }
             .page-number { position: absolute; bottom: 5mm; right: 10mm; font-size: 12px; color: #999; }
             
             .tag-wrapper { 
-                width: 75mm; 
-                height: 37mm; 
-                position: relative; 
-                box-sizing: border-box; 
-                border: 1px dashed #ccc; 
-                background-color: #ffffff; 
-                overflow: hidden; 
-                cursor: pointer; 
+                width: 75mm !important; 
+                height: 37mm !important; 
+                position: relative !important; 
+                box-sizing: border-box !important; 
+                border: 1px dashed #ccc !important; 
+                background-color: #ffffff !important; 
+                overflow: hidden !important; 
+                cursor: pointer !important; 
             }
-            .tag-wrapper.selected { outline: 2px solid #007bff; z-index: 10; }
+            .tag-wrapper.selected { outline: 2px solid #007bff !important; z-index: 10 !important; }
             
             .price-tag { width: 750px; height: 370px; position: absolute; top: 0; left: 0; color: #333; transform: scale(0.37795); transform-origin: top left; pointer-events: none; }
             .price-tag > * { pointer-events: auto; } 
@@ -385,41 +398,13 @@ with tab2:
             .standard .std-unit-price { position: absolute; top: 240px; right: 30px; font-size: 24px; font-weight: bold; color: #333; }
             .standard .product-name { top: 35px; left: 30px; height: 100px; font-size: 38px; width: 450px; } 
             
-            /* BEZSTRESOWY UKŁAD POZIOMY (LANDSCAPE) - 12 CENÓWEK */
+            /* Druk HTML w razie awarii PDF */
             @media print {
-                @page { size: A4 landscape; margin: 0 !important; } 
-                body { background-color: #fff; margin: 0 !important; padding: 0 !important; }
+                @page { size: A4 landscape; margin: 0; } 
+                body { background-color: #fff !important; margin: 0; padding: 0; }
                 .controls, #templates, .no-print, .page-number { display: none !important; }
-                
-                .a4-page { 
-                    width: 297mm !important; 
-                    height: 210mm !important; 
-                    margin: 0 !important; 
-                    /* Ponad 3 centymetry luzu z każdej strony! */
-                    padding: 31mm 36mm !important; 
-                    box-sizing: border-box !important; 
-                    display: grid !important; 
-                    grid-template-columns: 75mm 75mm 75mm !important; /* 3 kolumny */
-                    grid-auto-rows: 37mm !important; /* 4 rzędy */
-                    gap: 0 !important;
-                    page-break-after: always !important; 
-                    box-shadow: none !important;
-                    overflow: hidden !important;
-                    zoom: 1 !important;
-                }
-                .a4-page:last-child { page-break-after: auto !important; }
-                
-                .tag-wrapper { 
-                    width: 75mm !important; 
-                    height: 37mm !important; 
-                    margin: 0 !important;
-                    border: 1px dashed #ccc !important; 
-                    box-sizing: border-box !important; 
-                    page-break-inside: avoid !important; 
-                    float: none !important;
-                } 
+                .a4-page { box-shadow: none !important; margin: 0 !important; }
                 .tag-wrapper.selected { outline: none !important; }
-                [contenteditable="true"]:hover, [contenteditable="true"]:focus { outline: none; background-color: transparent; }
             }
         </style>
     </head>
@@ -428,46 +413,24 @@ with tab2:
             <div class="tag-wrapper" id="tpl-promo">
                 <div class="price-tag promo">
                     <div class="promo-amount" contenteditable="true">2 za</div>
-                    <div class="promo-price-container">
-                        <div class="promo-price" contenteditable="true">24</div>
-                        <div class="promo-currency" contenteditable="true">PLN</div>
-                    </div>
+                    <div class="promo-price-container"><div class="promo-price" contenteditable="true">24</div><div class="promo-currency" contenteditable="true">PLN</div></div>
                     <div class="unit-price-promo" contenteditable="true">12,00 PLN za 1szt</div>
                     <div class="meta-code" contenteditable="true"><span class="code-prefix">SKU</span>-<span class="auto-date">XX/XX/XXXX</span>-<span class="code-suffix">R</span></div>
-                    <div class="barcode">*0000000000000*</div>
-                    <div class="barcode-numbers" contenteditable="true">0000000000000</div>
+                    <div class="barcode">*0000000000000*</div><div class="barcode-numbers" contenteditable="true">0000000000000</div>
                     <div class="product-name" contenteditable="true">Wpisz Nazwę</div>
-                    
-                    <div class="regular-box">
-                        <div class="regular-label" contenteditable="true">cena<br>regularna</div>
-                        <div class="regular-price" contenteditable="true">16</div>
-                        <div class="regular-currency" contenteditable="true">PLN</div>
-                    </div>
-                    
+                    <div class="regular-box"><div class="regular-label" contenteditable="true">cena<br>regularna</div><div class="regular-price" contenteditable="true">16</div><div class="regular-currency" contenteditable="true">PLN</div></div>
                     <div class="unit-price-regular" contenteditable="true">16,00 PLN za 1szt</div>
-                    <div class="omnibus" contenteditable="true">
-                        <div class="omnibus-text">najniższa cena<br>z 30 dni przed<br>obniżką</div>
-                        <div class="omnibus-price" contenteditable="true">16 PLN</div>
-                    </div>
+                    <div class="omnibus" contenteditable="true"><div class="omnibus-text">najniższa cena<br>z 30 dni przed<br>obniżką</div><div class="omnibus-price" contenteditable="true">16 PLN</div></div>
                 </div>
             </div>
             <div class="tag-wrapper" id="tpl-standard">
                 <div class="price-tag standard">
                     <div class="product-name" contenteditable="true">Nazwa Produktu</div>
                     <div class="meta-code" contenteditable="true"><span class="code-prefix">SKU</span>-<span class="auto-date">XX/XX/XXXX</span>-<span class="code-suffix">R</span></div>
-                    <div class="barcode">*0000000000000*</div>
-                    <div class="barcode-numbers" contenteditable="true">0000000000000</div>
-                    
-                    <div class="std-price-container">
-                        <div class="std-price" contenteditable="true">0</div>
-                        <div class="std-currency" contenteditable="true">PLN</div>
-                    </div>
-                    
+                    <div class="barcode">*0000000000000*</div><div class="barcode-numbers" contenteditable="true">0000000000000</div>
+                    <div class="std-price-container"><div class="std-price" contenteditable="true">0</div><div class="std-currency" contenteditable="true">PLN</div></div>
                     <div class="std-unit-price" contenteditable="true">0,00 PLN za 1szt</div>
-                    <div class="omnibus" contenteditable="true">
-                        <div class="omnibus-text">najniższa cena<br>z 30 dni przed<br>obniżką</div>
-                        <div class="omnibus-price" contenteditable="true">0 PLN</div>
-                    </div>
+                    <div class="omnibus" contenteditable="true"><div class="omnibus-text">najniższa cena<br>z 30 dni przed<br>obniżką</div><div class="omnibus-price" contenteditable="true">0 PLN</div></div>
                 </div>
             </div>
         </div>
@@ -482,12 +445,9 @@ with tab2:
             <button class="btn-danger" onclick="deleteSelected()">🗑️ Usuń</button>
             <button class="btn-warning" onclick="clearAll()">💥 Wyczyść</button>
             <div class="divider"></div>
-            <input type="file" id="csv-upload" accept=".csv" style="display: none;" onchange="handleCSV(event)">
-            <button class="btn-import-csv" onclick="document.getElementById('csv-upload').click()">📂 CSV</button>
-            <button class="btn-print" onclick="pobierzPDF()">📄 Pobierz gotowy PDF</button>
+            <button class="btn-print" style="background-color: #d32f2f !important;" onclick="pobierzPDF()">📄 POBIERZ PDF (GŁÓWNE)</button>
             <div class="divider"></div>
             <input type="text" id="searchInput" class="search-box" placeholder="🔍 Szukaj..." oninput="filterTags()">
-            <div class="hint">⚠️ <b>Zanim wydrukujesz:</b> Upewnij się, że w oknie drukarki <b>Skala = 100%</b>. | Z wciśniętym <b>CTRL</b> zaznaczasz kilka cenówek. <b>ALT + [ ]</b> pomniejsza tekst.</div>
         </div>
         <div id="pages-container"></div>
         <script>
@@ -496,42 +456,49 @@ with tab2:
     html_bridge = f"window.BRIDGE_DATA = {json.dumps(bridge_data)};"
     
     html_tail = """
+            // SZTYWNY LIMIT 15 CENÓWEK NA STRONĘ
             const MathVars = { TAGS_PER_PAGE: 15 };
 
-            function importFromBridge() {
-                if (!window.BRIDGE_DATA || window.BRIDGE_DATA.length === 0) {
-                    alert("Brak danych! Przejdź do zakładki 'LISTA ZMIAN CEN', przetwórz gazetkę i upewnij się, że z lewej strony są zaznaczone checkboxy 'Do druku'!");
-                    return;
-                }
-                if (confirm("Czy chcesz automatycznie wygenerować " + window.BRIDGE_DATA.length + " cenówek na podstawie dzisiejszej gazetki?")) {
-                    window.BRIDGE_DATA.forEach(item => {
-                        addTag(item.type, true, item.data);
+            function pobierzPDF() {
+                try {
+                    if (typeof html2pdf === 'undefined') {
+                        alert("Błąd: Skrypt PDF nie został załadowany. Sprawdź połączenie z internetem lub zaporę sieciową firmy.");
+                        return;
+                    }
+                    
+                    alert("Trwa generowanie PDF. Proszę czekać...");
+                    const element = document.getElementById('pages-container');
+                    if (!element || element.innerHTML.trim() === '') {
+                        alert("Brak cenówek do wygenerowania!");
+                        return;
+                    }
+
+                    document.querySelectorAll('.tag-wrapper.selected').forEach(t => t.classList.remove('selected'));
+
+                    const opt = {
+                        margin:       0,
+                        filename:     'Awaryjne_Cenowki.pdf',
+                        image:        { type: 'jpeg', quality: 1.0 },
+                        html2canvas:  { scale: 2, useCORS: true, logging: false },
+                        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+                    };
+
+                    html2pdf().set(opt).from(element).save().then(function() {
+                        alert("Gotowe! Otwórz plik i wydrukuj w skali 100%.");
+                    }).catch(function(err) {
+                        alert("Wystąpił błąd podczas generowania: " + err.message);
                     });
-                    autoFitAll();
+                } catch (err) {
+                    alert("Wystąpił problem z kodem: " + err.message);
                 }
             }
 
-            function pobierzPDF() {
-    // 1. Ostrzeżenie i pobranie pliku
-    alert("Generowanie pliku PDF może potrwać kilka sekund. Wciśnij OK i poczekaj.");
-    const element = document.getElementById('pages-container');
-    
-    // 2. Tymczasowe ukrycie elementów interfejsu (żeby nie wydrukowała się zaznaczona ramka)
-    document.querySelectorAll('.tag-wrapper.selected').forEach(t => t.classList.remove('selected'));
-
-    // 3. Konfiguracja jakości i rozmiaru PDF
-    const opt = {
-        margin:       0,
-        filename:     'Awaryjne_Cenowki.pdf',
-        image:        { type: 'jpeg', quality: 1.0 },
-        html2canvas:  { scale: 3, useCORS: true, logging: false }, // scale: 3 zapewnia wysoką ostrość kodu kreskowego
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
-    };
-
-    // 4. Wygenerowanie i pobranie pliku
-    html2pdf().set(opt).from(element).save().then(() => {
-        alert("Gotowe! Plik PDF został pobrany. Pamiętaj, by wydrukować go w skali 100%.");
-    });
+            function importFromBridge() {
+                if (!window.BRIDGE_DATA || window.BRIDGE_DATA.length === 0) return;
+                if (confirm("Wygenerować " + window.BRIDGE_DATA.length + " cenówek?")) {
+                    window.BRIDGE_DATA.forEach(item => { addTag(item.type, true, item.data); });
+                    autoFitAll();
+                }
             }
 
             function saveState() {
@@ -548,33 +515,10 @@ with tab2:
 
             function loadState() {
                 const saved = localStorage.getItem('mtb_tags_saved');
-                if (saved) {
-                    document.getElementById('pages-container').innerHTML = saved;
-                }
+                if (saved) document.getElementById('pages-container').innerHTML = saved;
             }
 
             window.addEventListener('DOMContentLoaded', loadState);
-
-            window.addEventListener('beforeprint', function() {
-                const searchInput = document.getElementById('searchInput');
-                if(searchInput.value !== '') {
-                    searchInput.value = '';
-                    filterTags(); 
-                }
-                document.querySelectorAll('.tag-wrapper.selected').forEach(t => t.classList.remove('selected'));
-            });
-
-            document.addEventListener('paste', function(e) {
-                if (e.target.isContentEditable) {
-                    e.preventDefault();
-                    let text = (e.originalEvent || e).clipboardData.getData('text/plain');
-                    const selection = window.getSelection();
-                    if (!selection.rangeCount) return;
-                    selection.deleteFromDocument();
-                    selection.getRangeAt(0).insertNode(document.createTextNode(text));
-                    selection.collapseToEnd();
-                }
-            });
 
             function applyCurrentDate(element) {
                 const dzisiaj = new Date();
@@ -592,7 +536,6 @@ with tab2:
             function recalculateMath(tag) {
                 if (!tag) return;
                 const isPromo = tag.classList.contains('promo');
-
                 const nameText = (tag.querySelector('.product-name').textContent || "").toLowerCase().replace(',', '.');
                 const capMatch = nameText.match(/(\\d+(?:\\.\\d+)?)\\s*(ml|l|g|kg)\\b/i);
 
@@ -605,17 +548,14 @@ with tab2:
                     
                     if (!isNaN(pPrice) && qty > 0) {
                         let pricePerPiece = pPrice / qty;
-                        let calcPrice = pricePerPiece;
-                        let unitStr = "1szt";
-
+                        let calcPrice = pricePerPiece, unitStr = "1szt";
                         if (capMatch) {
-                            let amount = parseFloat(capMatch[1]);
-                            let u = capMatch[2];
+                            let amount = parseFloat(capMatch[1]), u = capMatch[2];
                             if (amount > 0) {
                                 if (u === 'ml') { calcPrice = (pricePerPiece / amount) * 100; unitStr = "100ml"; }
-                                else if (u === 'l') { calcPrice = (pricePerPiece / amount) * 1; unitStr = "1L"; }
+                                else if (u === 'l') { calcPrice = pricePerPiece / amount; unitStr = "1L"; }
                                 else if (u === 'g') { calcPrice = (pricePerPiece / amount) * 100; unitStr = "100g"; }
-                                else if (u === 'kg') { calcPrice = (pricePerPiece / amount) * 1; unitStr = "1kg"; }
+                                else if (u === 'kg') { calcPrice = pricePerPiece / amount; unitStr = "1kg"; }
                             }
                         }
                         tag.querySelector('.unit-price-promo').textContent = calcPrice.toFixed(2).replace('.', ',') + " " + pCurr + " za " + unitStr;
@@ -626,17 +566,14 @@ with tab2:
                     const rPrice = parseFloat(rText);
 
                     if (!isNaN(rPrice)) {
-                        let calcReg = rPrice;
-                        let unitStrReg = "1szt";
-                        
+                        let calcReg = rPrice, unitStrReg = "1szt";
                         if (capMatch) {
-                            let amount = parseFloat(capMatch[1]);
-                            let u = capMatch[2];
+                            let amount = parseFloat(capMatch[1]), u = capMatch[2];
                             if (amount > 0) {
                                 if (u === 'ml') { calcReg = (rPrice / amount) * 100; unitStrReg = "100ml"; }
-                                else if (u === 'l') { calcReg = (rPrice / amount) * 1; unitStrReg = "1L"; }
+                                else if (u === 'l') { calcReg = rPrice / amount; unitStrReg = "1L"; }
                                 else if (u === 'g') { calcReg = (rPrice / amount) * 100; unitStrReg = "100g"; }
-                                else if (u === 'kg') { calcReg = (rPrice / amount) * 1; unitStrReg = "1kg"; }
+                                else if (u === 'kg') { calcReg = rPrice / amount; unitStrReg = "1kg"; }
                             }
                         }
                         tag.querySelector('.unit-price-regular').textContent = calcReg.toFixed(2).replace('.', ',') + " " + rCurr + " za " + unitStrReg;
@@ -648,17 +585,14 @@ with tab2:
                     const sPrice = parseFloat(sText);
 
                     if (!isNaN(sPrice)) {
-                        let calcStd = sPrice;
-                        let unitStrStd = "1szt";
-                        
+                        let calcStd = sPrice, unitStrStd = "1szt";
                         if (capMatch) {
-                            let amount = parseFloat(capMatch[1]);
-                            let u = capMatch[2];
+                            let amount = parseFloat(capMatch[1]), u = capMatch[2];
                             if (amount > 0) {
                                 if (u === 'ml') { calcStd = (sPrice / amount) * 100; unitStrStd = "100ml"; }
-                                else if (u === 'l') { calcStd = (sPrice / amount) * 1; unitStrStd = "1L"; }
+                                else if (u === 'l') { calcStd = sPrice / amount; unitStrStd = "1L"; }
                                 else if (u === 'g') { calcStd = (sPrice / amount) * 100; unitStrStd = "100g"; }
-                                else if (u === 'kg') { calcStd = (sPrice / amount) * 1; unitStrStd = "1kg"; }
+                                else if (u === 'kg') { calcStd = sPrice / amount; unitStrStd = "1kg"; }
                             }
                         }
                         tag.querySelector('.std-unit-price').textContent = calcStd.toFixed(2).replace('.', ',') + " " + curr + " za " + unitStrStd;
@@ -676,20 +610,12 @@ with tab2:
                         const isPromo = tag.classList.contains('promo');
                         if (!isPromo) {
                             const priceContainer = tag.querySelector('.std-price-container');
-                            if (priceContainer) {
-                                const priceWidth = priceContainer.offsetWidth;
-                                const maxSafeWidth = 750 - 30 - 40 - priceWidth; 
-                                nameEl.style.width = maxSafeWidth + 'px';
-                            }
+                            if (priceContainer) nameEl.style.width = (750 - 30 - 40 - priceContainer.offsetWidth) + 'px';
                         }
-
-                        let max = isPromo ? 32 : 38;
-                        let min = 10; 
+                        let max = isPromo ? 32 : 38, min = 10; 
                         nameEl.style.fontSize = max + 'px';
-                        
                         while (nameEl.scrollHeight > nameEl.clientHeight && max > min) {
-                            max -= 0.5;
-                            nameEl.style.fontSize = max + 'px';
+                            max -= 0.5; nameEl.style.fontSize = max + 'px';
                         }
                     });
                     saveState(); 
@@ -720,7 +646,6 @@ with tab2:
                 const clone = template.cloneNode(true);
                 clone.removeAttribute('id'); 
                 applyCurrentDate(clone);
-                
                 const priceTag = clone.querySelector('.price-tag');
 
                 if (customData) {
@@ -741,72 +666,18 @@ with tab2:
                         const stdTargetPrice = (customData.promoPriceTotal && customData.promoPriceTotal > 0) ? customData.promoPriceTotal : customData.regPrice;
                         clone.querySelector('.std-price').textContent = formatCleanPrice(stdTargetPrice);
                     }
-                    
                     recalculateMath(priceTag);
                 }
 
-                const page = getAvailablePage();
-                page.appendChild(clone);
-            }
-
-            function handleCSV(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                
-                reader.onload = function(e) {
-                    let text = e.target.result;
-                    let inQuotes = false;
-                    let cleanedText = "";
-                    
-                    for (let i = 0; i < text.length; i++) {
-                        let char = text[i];
-                        if (char === '"') inQuotes = !inQuotes; 
-                        if (inQuotes && (char === '\\n' || char === '\\r')) {
-                            if (char === '\\n') cleanedText += " ";
-                            continue; 
-                        }
-                        cleanedText += char;
-                    }
-
-                    const lines = cleanedText.split('\\n');
-                    document.getElementById('pages-container').innerHTML = ''; 
-                    
-                    for (let i = 1; i < lines.length; i++) {
-                        if (!lines[i].trim()) continue;
-                        const cols = lines[i].split(';');
-                        
-                        if (cols.length >= 6) {
-                            const type = cols[0] === 'P' ? 'promo' : 'standard';
-                            let pVal = (cols[2] || "0").replace(/\\s/g, '').replace(',', '.');
-                            let rVal = (cols[3] || "0").replace(/\\s/g, '').replace(',', '.');
-
-                            const data = {
-                                name: cols[1],
-                                promoPriceTotal: parseFloat(pVal),
-                                regPrice: parseFloat(rVal),
-                                ean: cols[4] ? cols[4].replace(/"/g, '').trim() : "",
-                                promoQty: cols[5] ? cols[5].trim() : "1",
-                                sku: cols[6] ? cols[6].trim() : "SKU"
-                            };
-                            addTag(type, true, data);
-                        }
-                    }
-                    autoFitAll(); 
-                    event.target.value = ''; 
-                };
-                reader.readAsText(file, "UTF-8"); 
+                getAvailablePage().appendChild(clone);
             }
 
             document.addEventListener('click', function(e) {
                 const tag = e.target.closest('.tag-wrapper');
-                if (e.target.isContentEditable) return; 
-                if (tag && tag.closest('#templates')) return;
-
+                if (e.target.isContentEditable || (tag && tag.closest('#templates'))) return; 
                 if (tag) {
-                    if (e.ctrlKey) {
-                        tag.classList.toggle('selected');
-                    } else {
+                    if (e.ctrlKey) tag.classList.toggle('selected');
+                    else {
                         document.querySelectorAll('.tag-wrapper').forEach(t => t.classList.remove('selected'));
                         tag.classList.add('selected');
                     }
@@ -817,145 +688,66 @@ with tab2:
 
             function deleteSelected() {
                 const selected = document.querySelectorAll('#pages-container .tag-wrapper.selected');
-                if (selected.length === 0) {
-                    alert("Najpierw zaznacz cenówkę klikając w jej puste tło.");
-                    return;
-                }
+                if (selected.length === 0) { alert("Zaznacz cenówkę."); return; }
                 selected.forEach(tag => tag.remove());
-                cleanEmptyPages();
-                saveState();
+                cleanEmptyPages(); saveState();
             }
 
             function clearAll() { 
-                if (confirm("Jesteś pewien, że chcesz usunąć wszystkie cenówki?")) { 
-                    document.getElementById('pages-container').innerHTML = ''; 
-                    saveState();
-                } 
+                if (confirm("Usunąć wszystkie cenówki?")) { document.getElementById('pages-container').innerHTML = ''; saveState(); } 
             }
 
             function cleanEmptyPages() {
-                document.querySelectorAll('.a4-page').forEach(page => {
-                    if (page.querySelectorAll('.tag-wrapper').length === 0) page.remove();
-                });
+                document.querySelectorAll('.a4-page').forEach(page => { if (page.querySelectorAll('.tag-wrapper').length === 0) page.remove(); });
                 document.querySelectorAll('.a4-page').forEach((page, index) => {
                     const pageNumEl = page.querySelector('.page-number');
                     if (pageNumEl) pageNumEl.textContent = `Strona ${index + 1}`;
                 });
             }
 
-            document.addEventListener('keydown', function(e) {
-                const el = document.activeElement;
-                if (el && el.isContentEditable && e.altKey) {
-                    e.preventDefault(); 
-                    let style = window.getComputedStyle(el);
-                    let fontSize = parseFloat(style.fontSize);
-                    let transform = style.transform;
-                    let tx = 0, ty = 0;
-                    
-                    if (transform !== 'none') {
-                        let matrix = transform.match(/^matrix\\((.+)\\)$/);
-                        if (matrix) {
-                            let values = matrix[1].split(', ');
-                            tx = parseFloat(values[4]);
-                            ty = parseFloat(values[5]);
-                        }
-                    }
-
-                    const step = 2; 
-                    
-                    if (e.key === '[') el.style.fontSize = (fontSize - step) + 'px';
-                    if (e.key === ']') el.style.fontSize = (fontSize + step) + 'px';
-                    if (e.key === 'ArrowUp') ty -= step;
-                    if (e.key === 'ArrowDown') ty += step;
-                    if (e.key === 'ArrowLeft') tx -= step;
-                    if (e.key === 'ArrowRight') tx += step;
-
-                    el.style.transform = `translate(${tx}px, ${ty}px)`;
-                    saveState();
-                }
-            });
-
             document.addEventListener('input', function(e) {
                 const priceTag = e.target.closest('.price-tag');
-                
                 if (priceTag && e.target.classList.contains('barcode-numbers')) {
                     const barcodeEl = priceTag.querySelector('.barcode');
-                    if (barcodeEl) {
-                        const cleanNumbers = e.target.textContent.replace(/\\s+/g, '');
-                        barcodeEl.textContent = '*' + cleanNumbers + '*';
-                    }
+                    if (barcodeEl) barcodeEl.textContent = '*' + e.target.textContent.replace(/\\s+/g, '') + '*';
                 }
-
-                if (priceTag && (e.target.classList.contains('promo-price') || 
-                                 e.target.classList.contains('regular-price') || 
-                                 e.target.classList.contains('promo-amount') || 
-                                 e.target.classList.contains('std-price') ||
-                                 e.target.classList.contains('product-name'))) {
+                if (priceTag && (e.target.classList.contains('promo-price') || e.target.classList.contains('regular-price') || e.target.classList.contains('promo-amount') || e.target.classList.contains('std-price') || e.target.classList.contains('product-name'))) {
                     recalculateMath(priceTag);
                 }
-
                 if (e.target.classList.contains('product-name')) {
-                    let el = e.target;
-                    let isPromo = el.closest('.promo') !== null;
-                    let max = isPromo ? 32 : 38;
-                    let min = 10;
-                    
+                    let el = e.target, isPromo = el.closest('.promo') !== null;
+                    let max = isPromo ? 32 : 38, min = 10;
                     el.style.fontSize = max + 'px';
-                    while (el.scrollHeight > el.clientHeight && max > min) {
-                        max -= 0.5;
-                        el.style.fontSize = max + 'px';
-                    }
+                    while (el.scrollHeight > el.clientHeight && max > min) { max -= 0.5; el.style.fontSize = max + 'px'; }
                 }
                 if (e.target.isContentEditable) saveState();
             });
 
             function duplicateSelected() {
                 const selected = document.querySelectorAll('#pages-container .tag-wrapper.selected');
-                if (selected.length === 0) {
-                    alert("Najpierw zaznacz cenówkę (lub kilka z wciśniętym CTRL), którą chcesz powielić.");
-                    return;
-                }
-                
+                if (selected.length === 0) { alert("Zaznacz cenówkę."); return; }
                 selected.forEach(tag => {
                     const clone = tag.cloneNode(true);
                     clone.classList.remove('selected');
-                    const page = getAvailablePage();
-                    page.appendChild(clone);
+                    getAvailablePage().appendChild(clone);
                 });
-                
                 saveState();
             }
 
             function filterTags() {
                 const query = document.getElementById('searchInput').value.toLowerCase();
-                const tags = document.querySelectorAll('#pages-container .tag-wrapper');
-                
-                tags.forEach(tag => {
-                    const name = (tag.querySelector('.product-name')?.textContent || "").toLowerCase();
-                    const sku = (tag.querySelector('.code-prefix')?.textContent || "").toLowerCase();
-                    const ean = (tag.querySelector('.barcode-numbers')?.textContent || "").toLowerCase();
-                    
-                    if (name.includes(query) || sku.includes(query) || ean.includes(query)) {
-                        tag.style.display = ''; 
-                    } else {
-                        tag.style.display = 'none'; 
-                    }
+                document.querySelectorAll('#pages-container .tag-wrapper').forEach(tag => {
+                    const text = (tag.textContent || "").toLowerCase();
+                    tag.style.display = text.includes(query) ? '' : 'none'; 
                 });
-                
                 document.querySelectorAll('#pages-container .a4-page').forEach(page => {
                     const visibleTags = Array.from(page.querySelectorAll('.tag-wrapper')).filter(t => t.style.display !== 'none');
-                    if (visibleTags.length === 0) {
-                        page.style.display = 'none';
-                    } else {
-                        page.style.display = 'grid';
-                    }
+                    // Gwarancja, że siatka zostaje zachowana po wyszukiwaniu
+                    page.style.setProperty('display', visibleTags.length === 0 ? 'none' : 'grid', 'important');
                 });
             }
-            
-            if(window.location.href.startsWith("blob:")) {
-                 window.onload = function() { setTimeout(function(){ window.print(); }, 800); };
-            }
         </script>
+    """
     </body>
     </html>
     """
