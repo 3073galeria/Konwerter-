@@ -194,6 +194,7 @@ with tab1:
                 <meta charset="UTF-8">
                 <title>Lista Zmian Cen Dealz</title>
                 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
                 <style>
                     @page {{ size: A4 portrait; margin: 8mm; }}
                     * {{ box-sizing: border-box; }}
@@ -318,21 +319,21 @@ with tab2:
             .hint { width: 100%; color: #aaa; font-size: 12px; margin-top: 5px; }
             
             /* BEZSTRESOWY UKŁAD POZIOMY A4 - 12 SZTUK (3x4) BEZ PRZERW */
-            .a4-page { 
-                background-color: #fff; 
-                width: 297mm; 
-                height: 210mm; 
-                margin: 20px auto; 
-                box-shadow: 0 0 10px rgba(0,0,0,0.1); 
-                box-sizing: border-box; 
-                display: grid; 
-                grid-template-columns: 75mm 75mm 75mm; 
-                grid-template-rows: repeat(3, 46.25mm); 
-                justify-content: center; 
-                align-content: center;   
-                gap: 0; 
-                position: relative; 
-            }
+            .a4-page .a4-page { 
+    background-color: #fff; 
+    width: 297mm; 
+    height: 210mm; 
+    margin: 20px auto; 
+    /* Marginesy centrujące: 12.5mm góra/dół i 36mm lewo/prawo */
+    padding: 12.5mm 36mm; 
+    box-sizing: border-box; 
+    display: grid; 
+    grid-template-columns: 75mm 75mm 75mm; /* 3 kolumny */
+    grid-template-rows: repeat(5, 37mm);   /* 5 rzędów (15 cenówek) */
+    gap: 0; 
+    position: relative; 
+    overflow: hidden;
+}
             .page-number { position: absolute; bottom: 5mm; right: 10mm; font-size: 12px; color: #999; }
             
             .tag-wrapper { 
@@ -483,7 +484,7 @@ with tab2:
             <div class="divider"></div>
             <input type="file" id="csv-upload" accept=".csv" style="display: none;" onchange="handleCSV(event)">
             <button class="btn-import-csv" onclick="document.getElementById('csv-upload').click()">📂 CSV</button>
-            <button class="btn-print" onclick="downloadHTML()">🖨️ Pobierz do Druku (HTML)</button>
+            <button class="btn-print" onclick="pobierzPDF()">📄 Pobierz gotowy PDF</button>
             <div class="divider"></div>
             <input type="text" id="searchInput" class="search-box" placeholder="🔍 Szukaj..." oninput="filterTags()">
             <div class="hint">⚠️ <b>Zanim wydrukujesz:</b> Upewnij się, że w oknie drukarki <b>Skala = 100%</b>. | Z wciśniętym <b>CTRL</b> zaznaczasz kilka cenówek. <b>ALT + [ ]</b> pomniejsza tekst.</div>
@@ -495,7 +496,7 @@ with tab2:
     html_bridge = f"window.BRIDGE_DATA = {json.dumps(bridge_data)};"
     
     html_tail = """
-            const MathVars = { TAGS_PER_PAGE: 9 };
+            const MathVars = { TAGS_PER_PAGE: 15 };
 
             function importFromBridge() {
                 if (!window.BRIDGE_DATA || window.BRIDGE_DATA.length === 0) {
@@ -510,18 +511,27 @@ with tab2:
                 }
             }
 
-            function downloadHTML() {
-                const htmlContent = "<!DOCTYPE html>\\n<html lang='pl'>\\n<head>\\n" + document.head.innerHTML + "\\n</head>\\n<body>\\n" + document.body.innerHTML + "\\n</body>\\n</html>";
-                const blob = new Blob([htmlContent], { type: 'text/html' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = "Awaryjne_Cenowki_Dealz.html";
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                alert("Zapisano! Kliknij w pobrany plik na dole ekranu, a okno drukowania otworzy się automatycznie.");
+            function pobierzPDF() {
+    // 1. Ostrzeżenie i pobranie pliku
+    alert("Generowanie pliku PDF może potrwać kilka sekund. Wciśnij OK i poczekaj.");
+    const element = document.getElementById('pages-container');
+    
+    // 2. Tymczasowe ukrycie elementów interfejsu (żeby nie wydrukowała się zaznaczona ramka)
+    document.querySelectorAll('.tag-wrapper.selected').forEach(t => t.classList.remove('selected'));
+
+    // 3. Konfiguracja jakości i rozmiaru PDF
+    const opt = {
+        margin:       0,
+        filename:     'Awaryjne_Cenowki.pdf',
+        image:        { type: 'jpeg', quality: 1.0 },
+        html2canvas:  { scale: 3, useCORS: true, logging: false }, // scale: 3 zapewnia wysoką ostrość kodu kreskowego
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    };
+
+    // 4. Wygenerowanie i pobranie pliku
+    html2pdf().set(opt).from(element).save().then(() => {
+        alert("Gotowe! Plik PDF został pobrany. Pamiętaj, by wydrukować go w skali 100%.");
+    });
             }
 
             function saveState() {
