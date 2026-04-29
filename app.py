@@ -305,7 +305,7 @@ with tab2:
         <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
         <style>
-            body { background-color: #e0e0e0 !important; margin: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; padding-bottom: 50px; }
+            body { background-color: #e0e0e0; margin: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; padding-bottom: 50px; }
             .controls { position: sticky; top: 0; background-color: #333; width: 100%; padding: 15px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 100; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; }
             .controls button { background-color: #fff; border: none; padding: 10px 15px; font-size: 14px; cursor: pointer; border-radius: 5px; font-weight: bold; transition: 0.2s; }
             .controls button:hover { filter: brightness(0.9); }
@@ -320,48 +320,44 @@ with tab2:
             .divider { width: 2px; height: 30px; background-color: #555; margin: 0 5px; }
             .hint { width: 100%; color: #aaa; font-size: 12px; margin-top: 5px; }
             
-            /* PANCERNY UKŁAD POZIOMY A4 - 15 SZTUK (3x5) */
-            .a4-page { 
-                background-color: #ffffff !important; 
-                width: 297mm !important; 
-                height: 210mm !important; 
-                margin: 20px auto !important; 
-                box-shadow: 0 0 15px rgba(0,0,0,0.2) !important; 
-                box-sizing: border-box !important; 
-                
-                /* Wymuszenie siatki */
-                display: grid !important; 
-                grid-template-columns: 75mm 75mm 75mm !important; 
-                grid-auto-rows: 37mm !important; 
-                justify-content: center !important; 
-                align-content: center !important;   
-                gap: 0 !important; 
-                
-                /* Marginesy centrujące na kartce A4 */
-                padding-top: 12.5mm !important; 
-                padding-bottom: 12.5mm !important;
-                padding-left: 36mm !important; 
-                padding-right: 36mm !important; 
-                
-                position: relative !important; 
-                overflow: hidden !important;
-                page-break-after: always !important;
+            #pages-container {
+                width: 1122px; 
+                display: flex;
+                flex-direction: column;
+                align-items: center;
             }
-            .page-number { position: absolute; bottom: 5mm; right: 10mm; font-size: 12px; color: #999; }
+
+            .a4-page { 
+                background-color: #ffffff; 
+                width: 1122px; 
+                height: 793px; 
+                margin: 20px 0; 
+                box-shadow: 0 0 15px rgba(0,0,0,0.2); 
+                box-sizing: border-box; 
+                display: flex; 
+                flex-wrap: wrap;
+                align-content: flex-start;
+                justify-content: flex-start;
+                padding: 47px 136px; 
+                position: relative; 
+                overflow: hidden;
+            }
+            .page-number { position: absolute; bottom: 15px; right: 30px; font-size: 12px; color: #999; }
             
             .tag-wrapper { 
-                width: 75mm !important; 
-                height: 37mm !important; 
-                position: relative !important; 
-                box-sizing: border-box !important; 
-                border: 1px dashed #ccc !important; 
-                background-color: #ffffff !important; 
-                overflow: hidden !important; 
-                cursor: pointer !important; 
+                width: 283px; 
+                height: 139px; 
+                position: relative; 
+                box-sizing: border-box; 
+                border: 1px dashed #ccc; 
+                background-color: #ffffff; 
+                overflow: hidden; 
+                cursor: pointer; 
+                flex-shrink: 0;
             }
-            .tag-wrapper.selected { outline: 2px solid #007bff !important; z-index: 10 !important; }
+            .tag-wrapper.selected { outline: 2px solid #007bff; z-index: 10; border: none; }
             
-            .price-tag { width: 750px; height: 370px; position: absolute; top: 0; left: 0; color: #333; transform: scale(0.37795); transform-origin: top left; pointer-events: none; }
+            .price-tag { width: 750px; height: 370px; position: absolute; top: 0; left: 0; color: #333; transform: scale(0.3756); transform-origin: top left; pointer-events: none; }
             .price-tag > * { pointer-events: auto; } 
             [contenteditable="true"]:hover { background-color: rgba(0, 0, 0, 0.05); outline: 2px dashed #999; cursor: text; }
             [contenteditable="true"]:focus { background-color: rgba(0, 123, 255, 0.1); outline: 2px solid #007bff; cursor: text; }
@@ -398,7 +394,6 @@ with tab2:
             .standard .std-unit-price { position: absolute; top: 240px; right: 30px; font-size: 24px; font-weight: bold; color: #333; }
             .standard .product-name { top: 35px; left: 30px; height: 100px; font-size: 38px; width: 450px; } 
             
-            /* Druk HTML w razie awarii PDF */
             @media print {
                 @page { size: A4 landscape; margin: 0; } 
                 body { background-color: #fff !important; margin: 0; padding: 0; }
@@ -445,9 +440,13 @@ with tab2:
             <button class="btn-danger" onclick="deleteSelected()">🗑️ Usuń</button>
             <button class="btn-warning" onclick="clearAll()">💥 Wyczyść</button>
             <div class="divider"></div>
-            <button class="btn-print" style="background-color: #d32f2f !important;" onclick="pobierzPDF()">📄 POBIERZ PDF (GŁÓWNE)</button>
+            <input type="file" id="csv-upload" accept=".csv" style="display: none;" onchange="handleCSV(event)">
+            <button class="btn-import-csv" onclick="document.getElementById('csv-upload').click()">📂 CSV</button>
+            <button class="btn-print" style="background-color: #d32f2f !important;" onclick="pobierzPDF()">📄 1. POBIERZ PDF (GŁÓWNE)</button>
+            <button class="btn-print" onclick="downloadHTML()">🖨️ 2. Pobierz HTML (Awaryjne)</button>
             <div class="divider"></div>
             <input type="text" id="searchInput" class="search-box" placeholder="🔍 Szukaj..." oninput="filterTags()">
+            <div class="hint">⚠️ <b>Skala w PDF = 100%.</b> | Wciśnięty <b>CTRL</b>: zaznacza wiele. | <b>ALT + [ ]</b>: skaluje tekst. | <b>ALT + Strzałki</b>: przesuwa tekst.</div>
         </div>
         <div id="pages-container"></div>
         <script>
@@ -456,41 +455,90 @@ with tab2:
     html_bridge = f"window.BRIDGE_DATA = {json.dumps(bridge_data)};"
     
     html_tail = """
-            // SZTYWNY LIMIT 15 CENÓWEK NA STRONĘ
             const MathVars = { TAGS_PER_PAGE: 15 };
 
             function pobierzPDF() {
                 try {
-                    if (typeof html2pdf === 'undefined') {
-                        alert("Błąd: Skrypt PDF nie został załadowany. Sprawdź połączenie z internetem lub zaporę sieciową firmy.");
-                        return;
-                    }
-                    
+                    if (typeof html2pdf === 'undefined') { alert("Błąd: Skrypt PDF nie został załadowany."); return; }
                     alert("Trwa generowanie PDF. Proszę czekać...");
                     const element = document.getElementById('pages-container');
-                    if (!element || element.innerHTML.trim() === '') {
-                        alert("Brak cenówek do wygenerowania!");
-                        return;
-                    }
+                    if (!element || element.innerHTML.trim() === '') { alert("Brak cenówek do wygenerowania!"); return; }
 
                     document.querySelectorAll('.tag-wrapper.selected').forEach(t => t.classList.remove('selected'));
+                    document.querySelectorAll('.a4-page').forEach(page => { page.style.boxShadow = 'none'; page.style.margin = '0'; });
 
                     const opt = {
                         margin:       0,
                         filename:     'Awaryjne_Cenowki.pdf',
                         image:        { type: 'jpeg', quality: 1.0 },
-                        html2canvas:  { scale: 2, useCORS: true, logging: false },
-                        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+                        html2canvas:  { scale: 2, useCORS: true, logging: false, windowWidth: 1122 },
+                        jsPDF:        { unit: 'px', format: [1122, 793], orientation: 'landscape' }
                     };
 
                     html2pdf().set(opt).from(element).save().then(function() {
                         alert("Gotowe! Otwórz plik i wydrukuj w skali 100%.");
-                    }).catch(function(err) {
-                        alert("Wystąpił błąd podczas generowania: " + err.message);
-                    });
-                } catch (err) {
-                    alert("Wystąpił problem z kodem: " + err.message);
-                }
+                        document.querySelectorAll('.a4-page').forEach(page => { page.style.boxShadow = '0 0 15px rgba(0,0,0,0.2)'; page.style.margin = '20px 0'; });
+                    }).catch(function(err) { alert("Wystąpił błąd: " + err.message); });
+                } catch (err) { alert("Wystąpił problem: " + err.message); }
+            }
+
+            // PRZYWRÓCONE POBIERANIE HTML
+            function downloadHTML() {
+                const htmlContent = "<!DOCTYPE html>\\n<html lang='pl'>\\n<head>\\n" + document.head.innerHTML + "\\n</head>\\n<body>\\n" + document.body.innerHTML + "\\n</body>\\n</html>";
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "Awaryjne_Cenowki_Dealz.html";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                alert("Zapisano! Kliknij w pobrany plik na dole ekranu (W oknie druku ustaw Brak Marginesów i Skala 100%).");
+            }
+
+            // PRZYWRÓCONA OBSŁUGA CSV
+            function handleCSV(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    let text = e.target.result;
+                    let inQuotes = false;
+                    let cleanedText = "";
+                    for (let i = 0; i < text.length; i++) {
+                        let char = text[i];
+                        if (char === '"') inQuotes = !inQuotes; 
+                        if (inQuotes && (char === '\\n' || char === '\\r')) {
+                            if (char === '\\n') cleanedText += " ";
+                            continue; 
+                        }
+                        cleanedText += char;
+                    }
+                    const lines = cleanedText.split('\\n');
+                    document.getElementById('pages-container').innerHTML = ''; 
+                    for (let i = 1; i < lines.length; i++) {
+                        if (!lines[i].trim()) continue;
+                        const cols = lines[i].split(';');
+                        if (cols.length >= 6) {
+                            const type = cols[0] === 'P' ? 'promo' : 'standard';
+                            let pVal = (cols[2] || "0").replace(/\\s/g, '').replace(',', '.');
+                            let rVal = (cols[3] || "0").replace(/\\s/g, '').replace(',', '.');
+                            const data = {
+                                name: cols[1],
+                                promoPriceTotal: parseFloat(pVal),
+                                regPrice: parseFloat(rVal),
+                                ean: cols[4] ? cols[4].replace(/"/g, '').trim() : "",
+                                promoQty: cols[5] ? cols[5].trim() : "1",
+                                sku: cols[6] ? cols[6].trim() : "SKU"
+                            };
+                            addTag(type, true, data);
+                        }
+                    }
+                    autoFitAll(); 
+                    event.target.value = ''; 
+                };
+                reader.readAsText(file, "UTF-8"); 
             }
 
             function importFromBridge() {
@@ -505,10 +553,7 @@ with tab2:
                 try {
                     const container = document.getElementById('pages-container');
                     const tempClone = container.cloneNode(true);
-                    tempClone.querySelectorAll('.tag-wrapper, .a4-page').forEach(el => {
-                        el.style.display = '';
-                        el.classList.remove('selected');
-                    });
+                    tempClone.querySelectorAll('.tag-wrapper, .a4-page').forEach(el => { el.style.display = ''; el.classList.remove('selected'); });
                     localStorage.setItem('mtb_tags_saved', tempClone.innerHTML);
                 } catch (e) {}
             }
@@ -519,6 +564,26 @@ with tab2:
             }
 
             window.addEventListener('DOMContentLoaded', loadState);
+
+            // PRZYWRÓCONE CZYSZCZENIE PRZED SYSTEMOWYM DRUKIEM
+            window.addEventListener('beforeprint', function() {
+                const searchInput = document.getElementById('searchInput');
+                if(searchInput.value !== '') { searchInput.value = ''; filterTags(); }
+                document.querySelectorAll('.tag-wrapper.selected').forEach(t => t.classList.remove('selected'));
+            });
+
+            // PRZYWRÓCONE WKLEJANIE CZYSTEGO TEKSTU
+            document.addEventListener('paste', function(e) {
+                if (e.target.isContentEditable) {
+                    e.preventDefault();
+                    let text = (e.originalEvent || e).clipboardData.getData('text/plain');
+                    const selection = window.getSelection();
+                    if (!selection.rangeCount) return;
+                    selection.deleteFromDocument();
+                    selection.getRangeAt(0).insertNode(document.createTextNode(text));
+                    selection.collapseToEnd();
+                }
+            });
 
             function applyCurrentDate(element) {
                 const dzisiaj = new Date();
@@ -547,8 +612,7 @@ with tab2:
                     const pPrice = parseFloat(pText);
                     
                     if (!isNaN(pPrice) && qty > 0) {
-                        let pricePerPiece = pPrice / qty;
-                        let calcPrice = pricePerPiece, unitStr = "1szt";
+                        let pricePerPiece = pPrice / qty, calcPrice = pricePerPiece, unitStr = "1szt";
                         if (capMatch) {
                             let amount = parseFloat(capMatch[1]), u = capMatch[2];
                             if (amount > 0) {
@@ -614,9 +678,7 @@ with tab2:
                         }
                         let max = isPromo ? 32 : 38, min = 10; 
                         nameEl.style.fontSize = max + 'px';
-                        while (nameEl.scrollHeight > nameEl.clientHeight && max > min) {
-                            max -= 0.5; nameEl.style.fontSize = max + 'px';
-                        }
+                        while (nameEl.scrollHeight > nameEl.clientHeight && max > min) { max -= 0.5; nameEl.style.fontSize = max + 'px'; }
                     });
                     saveState(); 
                 }, 50);
@@ -652,11 +714,7 @@ with tab2:
                     clone.querySelector('.product-name').innerHTML = customData.name;
                     clone.querySelector('.barcode-numbers').textContent = customData.ean;
                     clone.querySelector('.barcode').textContent = '*' + customData.ean + '*';
-                    
-                    if (customData.sku) {
-                        const prefixEl = clone.querySelector('.code-prefix');
-                        if (prefixEl) prefixEl.textContent = customData.sku;
-                    }
+                    if (customData.sku) { const prefixEl = clone.querySelector('.code-prefix'); if (prefixEl) prefixEl.textContent = customData.sku; }
 
                     if (type === 'promo') {
                         clone.querySelector('.promo-amount').textContent = customData.promoQty + " za";
@@ -668,19 +726,47 @@ with tab2:
                     }
                     recalculateMath(priceTag);
                 }
-
                 getAvailablePage().appendChild(clone);
             }
+
+            // PRZYWRÓCONE SKRÓTY KLAWISZOWE ALT+STRZAŁKI I ALT+[ ]
+            document.addEventListener('keydown', function(e) {
+                const el = document.activeElement;
+                if (el && el.isContentEditable && e.altKey) {
+                    e.preventDefault(); 
+                    let style = window.getComputedStyle(el);
+                    let fontSize = parseFloat(style.fontSize);
+                    let transform = style.transform;
+                    let tx = 0, ty = 0;
+                    
+                    if (transform !== 'none') {
+                        let matrix = transform.match(/^matrix\\((.+)\\)$/);
+                        if (matrix) {
+                            let values = matrix[1].split(', ');
+                            tx = parseFloat(values[4]);
+                            ty = parseFloat(values[5]);
+                        }
+                    }
+
+                    const step = 2; 
+                    if (e.key === '[') el.style.fontSize = (fontSize - step) + 'px';
+                    if (e.key === ']') el.style.fontSize = (fontSize + step) + 'px';
+                    if (e.key === 'ArrowUp') ty -= step;
+                    if (e.key === 'ArrowDown') ty += step;
+                    if (e.key === 'ArrowLeft') tx -= step;
+                    if (e.key === 'ArrowRight') tx += step;
+
+                    el.style.transform = `translate(${tx}px, ${ty}px)`;
+                    saveState();
+                }
+            });
 
             document.addEventListener('click', function(e) {
                 const tag = e.target.closest('.tag-wrapper');
                 if (e.target.isContentEditable || (tag && tag.closest('#templates'))) return; 
                 if (tag) {
                     if (e.ctrlKey) tag.classList.toggle('selected');
-                    else {
-                        document.querySelectorAll('.tag-wrapper').forEach(t => t.classList.remove('selected'));
-                        tag.classList.add('selected');
-                    }
+                    else { document.querySelectorAll('.tag-wrapper').forEach(t => t.classList.remove('selected')); tag.classList.add('selected'); }
                 } else if (!e.target.closest('.controls')) {
                     document.querySelectorAll('.tag-wrapper').forEach(t => t.classList.remove('selected'));
                 }
@@ -693,16 +779,11 @@ with tab2:
                 cleanEmptyPages(); saveState();
             }
 
-            function clearAll() { 
-                if (confirm("Usunąć wszystkie cenówki?")) { document.getElementById('pages-container').innerHTML = ''; saveState(); } 
-            }
+            function clearAll() { if (confirm("Usunąć wszystkie cenówki?")) { document.getElementById('pages-container').innerHTML = ''; saveState(); } }
 
             function cleanEmptyPages() {
                 document.querySelectorAll('.a4-page').forEach(page => { if (page.querySelectorAll('.tag-wrapper').length === 0) page.remove(); });
-                document.querySelectorAll('.a4-page').forEach((page, index) => {
-                    const pageNumEl = page.querySelector('.page-number');
-                    if (pageNumEl) pageNumEl.textContent = `Strona ${index + 1}`;
-                });
+                document.querySelectorAll('.a4-page').forEach((page, index) => { const pageNumEl = page.querySelector('.page-number'); if (pageNumEl) pageNumEl.textContent = `Strona ${index + 1}`; });
             }
 
             document.addEventListener('input', function(e) {
@@ -726,11 +807,7 @@ with tab2:
             function duplicateSelected() {
                 const selected = document.querySelectorAll('#pages-container .tag-wrapper.selected');
                 if (selected.length === 0) { alert("Zaznacz cenówkę."); return; }
-                selected.forEach(tag => {
-                    const clone = tag.cloneNode(true);
-                    clone.classList.remove('selected');
-                    getAvailablePage().appendChild(clone);
-                });
+                selected.forEach(tag => { const clone = tag.cloneNode(true); clone.classList.remove('selected'); getAvailablePage().appendChild(clone); });
                 saveState();
             }
 
@@ -742,9 +819,13 @@ with tab2:
                 });
                 document.querySelectorAll('#pages-container .a4-page').forEach(page => {
                     const visibleTags = Array.from(page.querySelectorAll('.tag-wrapper')).filter(t => t.style.display !== 'none');
-                    // Gwarancja, że siatka zostaje zachowana po wyszukiwaniu
-                    page.style.setProperty('display', visibleTags.length === 0 ? 'none' : 'grid', 'important');
+                    page.style.setProperty('display', visibleTags.length === 0 ? 'none' : 'flex', 'important');
                 });
+            }
+            
+            // PRZYWRÓCONE AUTOMATYCZNE WYWOŁANIE DRUKU W HTML (Opcja awaryjna)
+            if(window.location.href.startsWith("blob:")) {
+                 window.onload = function() { setTimeout(function(){ window.print(); }, 800); };
             }
         </script>
     </body>
